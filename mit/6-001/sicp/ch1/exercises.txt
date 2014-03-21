@@ -1,0 +1,132 @@
+###1.1###
+
+10
+
+;; 10
+
+(+ 5 3 4)
+
+;; 12
+
+(- 9 1)
+
+;; 8
+
+(/ 6 2)
+
+;; 3
+
+(+ (* 2 4) (- 4 6))
+
+;; 6
+
+(define a 3)
+
+;; a
+
+(define b (+ a 1))
+
+;; b
+
+(+ a b (* a b))
+
+;; 19
+
+(= a b)
+
+;; #f
+
+(if (and (> b a) (< b (* a b)))
+    b
+    a)
+
+;; 4
+
+(cond ((= a 4) 6)
+      ((= b 4) (+ 6 7 a))
+      (else 25))
+
+;; 16
+
+(+ 2 (if (> b a) b a))
+
+;; 6
+
+(* (cond ((> a b) a)
+         ((< a b) b)
+         (else -1))
+   (+ a 1))
+
+
+;; 16
+
+
+
+###1.2###
+
+(/ (+ 5
+      4
+      (- 2
+	 (- 3
+	    (+ 6
+	       (/ 1 5)))))
+   (* 3
+      (- 6 2)
+      (- 2 7)))
+;Value: -71/300
+
+
+###1.3###
+
+(define (sum-greater x y z)
+  (cond ((and (> x z) (> y z)) (+ x y))
+	((and (> x y) (> z y)) (+ x z))
+	(else (+ y z))))
+;Value: sum-greater
+
+(sum-greater 1 2 3)
+;Value: 5
+
+(sum-greater 3 2 1)
+;Value: 5
+
+(sum-greater 2 1 3)
+;Value: 5
+
+
+###1.4###
+
+The procedure applies the if procedure first. This uses the conditional to determine
+whether b is positive or negative. If positive, it adds a and b. if b is negative, it
+subtracts b from a.
+
+###1.5###
+
+in applicitave order, the following will occur:
+
+(test 0 (p))
+
+will look up the test procedure:
+
+(if (= 0 0)
+   0
+  (p))
+
+which will evaluate the predicate, and then decide to evalute the consequent expression.
+
+The consequent expression is 0, so the result will be 0.
+
+In normal order, the following takes place:
+
+(test 0 (p))
+
+will look up the procedure test:
+
+(if (= 0 0)
+   0
+  (p))
+
+and will attempt to replace operand expressions until only primitive procedures are
+obtained.
+
+This will lead to an infinite recursive call to (p).
