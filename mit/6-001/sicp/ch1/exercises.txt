@@ -4,6 +4,7 @@
 
 ;; 10
 
+
 (+ 5 3 4)
 
 ;; 12
@@ -130,3 +131,84 @@ and will attempt to replace operand expressions until only primitive procedures 
 obtained.
 
 This will lead to an infinite recursive call to (p).
+
+###1.6###
+
+Substitutive model:
+
+(sqrt 2)
+
+(sqrt-iter 1.0 2)
+
+;;; calls new-if
+
+(new-if (good-enough? 1.0 2)
+    1.0
+    (sqrt-iter (improve 1.0 2)
+               x)))
+
+;;; all combinations must be solved before they are handed to new if
+
+;;;good enough combination
+
+;;; The problem lies in the fact that all combinations are evaluated before the are applied as arguments. The function behaves as normal until
+;;; we reach the point where good-enough? evaluates to true. At this point, instead of the special form of if which would only evaluate the true
+;;; expression, the new-if function evaluates the sqrt-iter function once again before it applies the arguments, which will lead to an infinite loop.
+
+;;; confirmed through experimentation, the interpreter aborts due to maximum recursion depth being exceeded.
+
+###1.7###
+
+;;;The problem is that this test is not precise enough for small number. The algorithm will halt when the difference between x and guess**2 are within
+;;;0.001 of each other. This level of precision is inadequate for values of say, 0.00001. Here, the program has precision several orders of
+;;;magnitude less precise than the value we are looking for, so any answer will be useless.
+
+;;;Additionally, very large numbers are stored (I think) in IEEE floating-point format. In these numbers, the mantissa stores numbers from
+;;;left to right, meaning that if the length of the binary number exceeds the allotted bits (say 23) then the number will start throwing away
+;;;precision on the end. Thus, a value of 0.001 will probably be meaningless as a "good-enough" evaluator at extremely large values.
+
+(define (new-good-enough? guess old-guess)
+  (< (/ (abs (- guess old-guess))
+	old-guess)
+     0.001))
+
+;;; This is my solution, which just takes a percentage change with respect to the old-guess. This will be more precise for small values, because a
+;;; very large denominator will output very small results even when the precision of the square root calculation is not very small. For instance
+
+;;; 1 billion - 1 billion and 1 \ 1 billion will satisfy this condition, but our precision has not increased beyond the tens column yet.
+
+
+###1.8###
+
+(define (improve guess x)
+  (/ (+ (/ x
+	   (square guess))
+	(* 2 guess))
+     3))
+
+(define (cbrt-good-enough? guess old-guess)
+  (< (/ (abs (- guess old-guess))
+	old-guess)
+     0.001))
+
+
+(define (cbrt-iter guess old-guess x)
+  (if (cbrt-good-enough? guess old-guess)
+      guess
+      (cbrt-iter (improve guess x)
+		 guess
+		 x)))
+
+(define (cbrt x)
+  (cbrt-iter 1.0 0.001 x))
+
+(cbrt 27)
+;Value: 3.0000005410641766
+
+"this is a string"
+
+(display "this is a string")
+
+(string-length "woo")
+
+(string=? "woo" "wo")
