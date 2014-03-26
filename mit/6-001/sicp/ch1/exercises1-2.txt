@@ -199,5 +199,18 @@ h(4) = 2^(2^(2^2))
 ###1.12###
 
 
+(define (pascal row column)
+   (cond ((or (= column row) (= 1 column)) 1)
+	 (else (+ (pascal (- row 1) (- column 1))
+		  (pascal (- row 1) column)))))
 
+(pascal 4 3)
+
+###1.13###
+
+Will fill in later when I figure out LaTeX.
+
+###1.14###
+
+Drawing on paper. It appears that the growth in use of space is linear (each node only needs to know about the nodes above it). The growth in time is 2^n. This is by far an upper bound, because many of the branches don't propogate full binary trees, however the growth still exceeds n2 for greater values of n. (count-change 1000) didn't return an answer within 1 minute before I aborted the process.
 

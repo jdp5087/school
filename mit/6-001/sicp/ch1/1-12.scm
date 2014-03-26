@@ -5,18 +5,9 @@
 
 (pascal 4 3)
 
-(+ (pascal 3 2) (pascal 3 3))
-(pascal 3 2)
-
-(+ (pascal 3 2) 1)
-(+ (+ (pascal 2 1) (pascal 2 2)) 1)
-(+ (+ 1 1) 1)
-(+ 2 1)
-3
 
 
 
-(or (< 1 2) (> 3 2))
 
 
 
