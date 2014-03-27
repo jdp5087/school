@@ -154,8 +154,7 @@ n    h(n)     which is:
 3    16       2^4
 4    65536    2^16
 
-so I knew that the exponent was growing exponentially, but there isn't a way to express this without a piecewise function that I could think of, so I
-got stuck.
+so I knew that the exponent was growing exponentially, but there isn't a way to express this without a piecewise function that I could think of, so I got stuck.
 
 Here's the actual function definition.
 
@@ -212,5 +211,75 @@ Will fill in later when I figure out LaTeX.
 
 ###1.14###
 
-Drawing on paper. It appears that the growth in use of space is linear (each node only needs to know about the nodes above it). The growth in time is 2^n. This is by far an upper bound, because many of the branches don't propogate full binary trees, however the growth still exceeds n2 for greater values of n. (count-change 1000) didn't return an answer within 1 minute before I aborted the process.
+Drawing on paper. It appears that the growth in use of space is linear (each node only needs to know about the nodes above it).
+The growth in time is 2^n. This is by far an upper bound, because many of the branches don't propogate full binary trees,
+however the growth still exceeds n2 for greater values of n. (count-change 1000) didn't return an answer within 1 minute before
+I aborted the process.
+
+;;; WRONG HERE! I was correct the the space used is linear, but the number of steps is actually BigO(n^5). The lowest denomination results in a tree that is
+2n +1. Then, each layer of denomination after that leads to (n/k)*(complexity of k-1 layer), so k = 2 would have (n/5)*(2n - 1), which is BigO(n^2). For
+k=3 we have (n/10)*(n^2) so BigO(n^3). For k=5 we have BigO(n^5). This answer wasn't at all obvious to me. Bill the Lizard, who had two courses in analysis of
+algorithms posted their answer online. I think that working through CLRS will provide the necessary background in analyzing complexity of algorithms.
+
+###1.15###
+
+a.)
+
+Let's just write it out using the substitutive model (see the file 1-15.scm).
+
+We end up with before the delayed calls to p unravel:
+
+(p (p (p (p (p 0.05)))))
+
+So, we call p 5 times when the we start with (sine 12.05).
+
+b.)
+
+The number of calls to sine is equavalent can be expressed as k. the relationship between k and n is
+
+(n/(3^k)) <= 0.1
+
+In other words, it takes k calls to sine for n to be less than 0.1. We will always have 1 extra
+call to sine in order to have the base case returned. The number of operations from p will always be 4
+Thus, the actual number of calls is to sine 4*log3(n) +1. Thus, our magnitude is BigO(log3(n))
+
+The use of space is also related to the number of calls to sine. Therefore the use of space is also (BigO(log3(n)).
+
+
+###1.16###
+
+(define square
+  (lambda (x)
+    (* x x)))
+
+(define remainder
+  (lambda (n d)
+    (/ n d)))
+
+(define even?
+  (lambda (n)
+    (= (remainder n 2.0) 0)))
+
+(define fast-exp
+  (lambda (b n)
+    (fast-exp-iter b n 1)))
+
+(define fast-exp-iter
+  (lambda (b n a)
+    (if (< n 1)
+	a
+	(if (even? n)
+	    (fast-exp-iter b (/ n 2) (* a (square b)))
+	    (fast-exp-iter b (- n 1) (* a b))))))
+
+(fast-exp 2 16)
+;Value: 65536
+
+(fast-exp 2 17)
+;Value: 131072
+
+###1.17###
+
+
+
 
