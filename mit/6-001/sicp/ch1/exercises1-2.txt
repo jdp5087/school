@@ -550,3 +550,97 @@ expmod every time the exponent is even. This is espcially damaging because at mo
 (once at the beginning with an odd number, and once when 2/2 = 1). Thus the majority of calls to expmod will satisfy the even? condition on large
 inputs where efficiency is of more importance. If we explore the behavior of this process, we will see that every time even? is true, there will be an additional two calls to expmod, so if it is the second time even evaluates to true, we have 2*2 calls to expmod, and on the third 2*2*2. Now we see the true nature of this bug, because we are looking at a 2^n process within a log(n) process. So, the magnitude is BigO(log(2^n)), or simply BigO(n).
 
+
+###1.27###
+
+(define (expmod base exp m)
+  (cond ((= exp 0) 1)
+        ((even? exp)
+         (remainder (square (expmod base (/ exp 2) m))
+                    m))
+        (else
+         (remainder (* base (expmod base (- exp 1) m))
+                    m))))
+
+(define (congruent? n)
+  (congruent-iter n 1))
+
+(define (congruent-iter n a)
+  (cond ((= n a) true)
+	((= (expmod a n n) (remainder a n)) (congruent-iter n (+ a 1)))
+	(else false)))
+
+
+(congruent? 7)
+(congruent? 8)
+(congruent? 9)
+(congruent? 11)
+
+(congruent? 561)
+;Value: #t
+
+(congruent? 1105)
+;Value: #t
+
+(congruent? 1729)
+;Value: #t
+
+(congruent? 2465)
+;Value: #t
+
+(congruent? 2821)
+;Value: #t
+
+(congruent? 6601)
+;Value: #t
+
+(congruent? 6602)
+;Value: #f
+
+###1.28###
+
+(define (expmod base exp m one-mod-n)
+  (cond ((= exp 0) 1)
+        ((even? exp)
+         (remainder (check-one-mod-n (square (expmod base (/ exp 2) m one-mod-n)) one-mod-n)
+                    m))
+        (else
+         (remainder (* base (expmod base (- exp 1) m one-mod-n))
+                    m))))
+(define (check-one-mod-n sqr one-m-n)
+  (if (and (= sqr one-m-n) (not (or (= sqr 1) (= sqr (- m 1)))))
+      0
+      sqr))
+(define (miller-rabin n one-mod-n)
+  (define (try-it a)
+    (= (expmod a (- n 1) n one-mod-n) one-mod-n))
+  (try-it (+ 1 (random (- n 1)))))
+(define (fast-prime? n times)
+  (cond ((= times 0) true)
+	((miller-rabin n (remainder 1 n)) (fast-prime? n (- times 1)))
+	(else false)))
+
+(fast-prime? 3 5)
+;Value: #t
+
+(fast-prime? 199 5)
+;Value: #t
+
+
+(fast-prime? 561 5)
+;Value: #f
+
+(fast-prime? 1105 5)
+;Value: #f
+
+(fast-prime? 1729 5)
+;Value: #f
+
+(fast-prime? 2465 5)
+;Value: #f
+
+(fast-prime? 2821 5)
+;Value: #f
+
+(fast-prime? 6601 5)
+;Value: #f
