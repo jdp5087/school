@@ -73,3 +73,161 @@
 (let ((point1 (make-point 2 4))(point2 (make-point 4 0)))
   (let ((seg (make-segment point1 point2)))
     (print-point (midpoint seg))))
+
+
+###2.3###
+
+The following code is common to both implementations of rectangle:
+
+(define (make-segment start end)
+  (cons start end))
+(define (start-segment s)
+  (car s))
+(define (end-segment s)
+  (cdr s))
+(define (make-point x y)
+  (cons x y))
+(define (x-point p)
+  (car p))
+(define (y-point p)
+  (cdr p))
+(define (print-point p)
+  (newline)
+  (display "(")
+  (display (x-point p))
+  (display ",")
+  (display (y-point p))
+  (display ")"))
+(define (average s f)
+  (/ (+ (f (start-segment s))
+	(f (end-segment s)))
+     2))
+(define (midpoint s)
+  (make-point (average s x-point)
+	      (average s y-point)))
+(define (length-segment s)
+  (hypotenuse s))
+(define (hypotenuse s)
+  (sqrt (+ (square (grid-distance s x-point))
+	   (square (grid-distance s y-point)))))
+(define (grid-distance seg coord)
+  (abs (- (coord (end-segment seg))
+	  (coord (start-segment seg)))))
+
+@@@PART A@@@
+
+(define (make-rectangle p1 p2 p3 p4)
+  (cons (cons p1 p2) (cons p3 p4)))
+(define (rect-point1 r)
+  (car (car r)))
+(define (rect-point2 r)
+  (cdr (car r)))
+(define (rect-point3 r)
+  (car (cdr r)))
+(define (rect-point4 r)
+  (cdr (cdr r)))
+(define (rect-side1 r)
+  (make-segment (rect-point1 r) (rect-point2 r)))
+(define (rect-side2 r)
+  (make-segment (rect-point2 r) (rect-point3 r)))
+(define (rect-side3 r)
+  (make-segment (rect-point3 r) (rect-point4 r)))
+(define (rect-side4 r)
+  (make-segment (rect-point4 r) (rect-point1 r)))
+(define (rect-length r)
+  (length-segment (rect-side1 r)))
+(define (rect-width r)
+  (length-segment (rect-side2 r)))
+(define (rect-perimeter r)
+  (* 2 (+ (rect-length r)
+	  (rect-width r))))
+(define (rect-area r)
+  (* (rect-length r)
+     (rect-width r)))
+
+(let ((p1 (make-point 0 0))
+      (p2 (make-point 4 0))
+      (p3 (make-point 4 4))
+      (p4 (make-point 0 4)))
+  (let ((rect1 (make-rectangle p1 p2 p3 p4)))
+    (newline)
+    (display "Perimeter: ")
+    (display (rect-perimeter rect1))
+    (newline)
+    (display "Area: ")
+    (display (rect-area rect1))))
+Perimeter: 16
+Area: 16
+
+(let ((p1 (make-point 0 0))
+      (p2 (make-point 8 0))
+      (p3 (make-point 8 4))
+      (p4 (make-point 0 4)))
+  (let ((rect1 (make-rectangle p1 p2 p3 p4)))
+    (newline)
+    (display "Perimeter: ")
+    (display (rect-perimeter rect1))
+    (newline)
+    (display "Area: ")
+    (display (rect-area rect1))))
+Perimeter: 24
+Area: 32
+
+Here's my first implementation of rectangle. There are many ways that rectangle could be designed. This implementation has the
+advantage that it would be easily extended (because it is easy to access all of the points and line segments of the rectangle).
+The disadvantage is that for the purposes of just getting perimeter and area, it uses a lot of storage, and is relatively costly.
+
+@@@PART B@@@
+
+(define (make-length p1 p2)
+  (make-segment p1 (make-point (x-point p2) (y-point p1))))
+(define (make-width p1 p2)
+  (make-segment p1 (make-point (x-point p1) (y-point p2))))
+(define (make-rectangle p1 p2)
+  (cons (make-length p1 p2)
+	(make-width p1 p2)))
+(define (rect-length r)
+  (length-segment (car r)))
+(define (rect-width r)
+  (length-segment (cdr r)))
+(define (rect-perimeter r)
+  (* 2 (+ (rect-length r)
+	  (rect-width r))))
+(define (rect-area r)
+  (* (rect-length r)
+     (rect-width r)))
+(let ((p1 (make-point 0 0))
+      (p2 (make-point 4 4)))
+  (let ((rect1 (make-rectangle p1 p2)))
+    (newline)
+    (display "Perimeter: ")
+    (display (rect-perimeter rect1))
+    (newline)
+    (display "Area: ")
+    (display (rect-area rect1))))
+Perimeter: 16
+Area: 16
+
+(let ((p1 (make-point 0 0))
+      (p2 (make-point 8 4)))
+  (let ((rect1 (make-rectangle p1 p2)))
+    (newline)
+    (display "Perimeter: ")
+    (display (rect-perimeter rect1))
+    (newline)
+    (display "Area: ")
+    (display (rect-area rect1))))
+Perimeter: 24
+Area: 32
+
+Here's my second, much more streamlined implementation. Rectangle only accepts two points as parameters, and figures out the missing points.
+It knows this because both length sides will be the same and both width sides will also be the same. Furthermore, this version of
+rectangle doesn't store all of the points explicitly. It only stores 2 line segments, 1 for width and 1 for length. The selectors
+don't even return a segment, just the length of each respective line. Notice that the implementation of perimeter and area are identical to
+PART A, and both functions behave identically, thus we have achieved the goal of abstraction barriers between perimeter, area, and the underlying
+data structures.
+
+
+
+
+
