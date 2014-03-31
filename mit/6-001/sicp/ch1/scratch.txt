@@ -1,0 +1,18 @@
+(remainder (square (expmod 2 4 8))
+	   8)
+
+(remainder (square (remainder (square (expmod 2 2 8)) 8)) 8)
+
+(remainder (square (remainder (square (remainder (square (expmod 2 1 8)) 8) ) 8)) 8)
+
+(remainder (square (remainder (square (remainder (square (remainder (* 2 (expmod 2 0 8)) 8)) 8) ) 8)) 8)
+
+(remainder (square (remainder (square (remainder (square (remainder (* 2 1) 8)) 8) ) 8)) 8)
+
+(remainder (square (remainder (square (remainder (square 2) 8) ) 8)) 8)
+
+(remainder (square (remainder (square 4) 8)) 8)
+
+(remainder (square 0) 8)
+
+0
