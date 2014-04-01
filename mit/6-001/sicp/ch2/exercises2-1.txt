@@ -227,6 +227,55 @@ don't even return a segment, just the length of each respective line. Notice tha
 PART A, and both functions behave identically, thus we have achieved the goal of abstraction barriers between perimeter, area, and the underlying
 data structures.
 
+###2.4###
+
+(define (cons x y)
+  (lambda (m) (m x y)))
+
+(define (car m)
+  (z (lambda (p q) p)))
+
+***Substitution model***
+
+(car (cons x y))
+(car (lambda (m) (m x y)))
+(car #[compound-procedure 12])
+(#[compound-procedure 12] (lambda (p q) p))
+(#[compound-procedure 12] #[compound-procedure 13])
+---for the sake of clarity ill write out the lambda procedures)
+((lambda (m) (m x y)) (lambda (p q) p))
+((lambda (p q) p) x y)
+((lambda (x y) x) x y) ;;;<---which is like saying
+x
+
+So, the corresponding definition of cdr is as follows:
+
+(define (cdr z)
+  (z (lambda (p q) q)))
+
+
+###2.5###
+
+(define (mod b n)
+  (mod-iter b n 0 0))
+(define (mod-iter b n r c)
+  (if (not (= 0 r))
+      (- c 1)
+      (mod-iter b (/ n b) (remainder n b) (+ c 1))))
+(mod 2 (* (expt 2 4) (expt 3 3)))
+(define (cons a b)
+  (let ((p (* (expt 2 a) (expt 3 b))))
+    (define deliver (lambda (b) (mod b p)))
+    deliver))
+(define (car m)
+  ((lambda (m) (m 2)) m))
+(define (cdr m)
+  ((lambda (m) (m 3)) m))
+
+(car (cons 4 5))
+(cdr (cons 4 5))
+
+It is amazing how well this course fits with 6.042J (which I'm taking in parallel, and for that class I just read a chapter on number theory).
 
 
 
