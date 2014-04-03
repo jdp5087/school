@@ -277,6 +277,207 @@ So, the corresponding definition of cdr is as follows:
 
 It is amazing how well this course fits with 6.042J (which I'm taking in parallel, and for that class I just read a chapter on number theory).
 
+###2.6###
+
+Heres the prompt:
+
+--------------------------------------------------------------------------------
+Exercise 2.6.  In case representing pairs as procedures wasn't mind-boggling enough, consider that, in a language that can manipulate procedures, we can get by without numbers (at least insofar as nonnegative integers are concerned) by implementing 0 and the operation of adding 1 as
+
+(define zero (lambda (f) (lambda (x) x)))
+
+(define (add-1 n)
+  (lambda (f) (lambda (x) (f ((n f) x)))))
+
+This representation is known as Church numerals, after its inventor, Alonzo Church, the logician who invented the  calculus.
+
+Define one and two directly (not in terms of zero and add-1). (Hint: Use substitution to evaluate (add-1 zero)). Give a direct definition of the addition procedure + (not in terms of repeated application of add-1).
+--------------------------------------------------------------------------------
+
+So let's just follow the hint of using the substitution model and see if we can figure out what in the world is going on here.
+
+(add-1 zero)
+
+(add-1 (lambda (f) (lambda (x) x)))
+(lambda (f) (lambda (x) (f (((lambda (f) (lambda (x) x)) f) x))))
+(lambda (f) (lambda (x) (f ((lambda (x) x)) x))))
+(lambda (f) (lambda (x) (f x)))) <<<-----direct definition of one
+
+(add-1 (add-1 zero))
+(add-1 (add-1 (lambda (f) (lambda (x) x))))
+(add-1 (lambda (f) (lambda (x) (f (((lambda (f) (lambda (x) x)) f x)))))
+(add-1 (lambda (f) (lambda (x) (f ((lambda (x) x)) x))))
+(add-1 (lambda (f) (lambda (x) (f x))))
+(lambda (f) (lambda (x) (f (((lambda (f) (lambda (x) (f x)))) f) x)))
+(lambda (f) (lambda (x) (f ((lambda (x) (f x)))) x)))
+(lambda (f) (lambda (x) (f (f x)))) <<<-----direct definition of two
 
 
+(define (+ n1 n2)
+  (lambda (f) (lambda (x) ((n1 f) ((n2 f) x))))) <<<-----direct definition of add
+
+(+ (lambda (f) (lambda (x) (f (f x)))) (lambda (f) (lambda (x) (f x)))) ;;; Here I'm adding one and two
+(lambda (f) (lambda (x) (((lambda (f) (lambda (x) (f (f x)))) f) (((lambda (f) (lambda (x) (f x))) f) x))))
+(lambda (f) (lambda (x) (((lambda (f) (lambda (x) (f (f x)))) f) ((lambda (x) (f x)) x))))
+(lambda (f) (lambda (x) (((lambda (f) (lambda (x) (f (f x)))) f) (f x))))
+(lambda (f) (lambda (x) ((lambda (x) (f (f x))) (f x))))
+(lambda (f) (lambda (x) (f (f (f x)))))
+
+While this has been an eye opening experience, the usefulness here doesn't exactly blow me away. One of the huge aspects of good code is that
+it should be readable. I spent 2 or so hours trying to think through all of the twists and contortions that the procedures are doing here.
+While it is elegant, the practical use is not apparent to me. When I was trying to read the code, I found that telling myself "Well, this is a procedure, that takes f
+and returns a procedure that takes x, which applies f with x substituted in to a composition of n and f" to be entirely confusing and inadequate for
+understanding what is going on. While eventually I did grasp the idea here, it wasn't without struggle. perhaps the lesson I learned is to never write code
+like this if I plan on having anyone else read it.
+
+
+###2.7###
+
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.7.  Alyssa's program is incomplete because she has not specified the implementation of the interval abstraction. Here is a definition of the interval constructor:
+
+(define (make-interval a b) (cons a b))
+
+Define selectors upper-bound and lower-bound to complete the implementation.
+-----------------------------------------------------------------------------------------------------------------
+
+(define (add-interval x y)
+  (make-interval (+ (lower-bound x) (lower-bound y))
+                 (+ (upper-bound x) (upper-bound y))))
+
+
+(define (mul-interval x y)
+  (let ((p1 (* (lower-bound x) (lower-bound y)))
+        (p2 (* (lower-bound x) (upper-bound y)))
+        (p3 (* (upper-bound x) (lower-bound y)))
+        (p4 (* (upper-bound x) (upper-bound y))))
+    (make-interval (min p1 p2 p3 p4)
+                   (max p1 p2 p3 p4))))
+
+(define (div-interval x y)
+  (mul-interval x 
+                (make-interval (/ 1.0 (upper-bound y))
+                               (/ 1.0 (lower-bound y)))))
+
+(define (make-interval a b) (cons a b))
+(define (lower-bound i)
+  (car i))
+(define (upper-bound i)
+  (cdr i))
+
+(let ((i1 (make-interval 6.12 7.48))
+      (i2 (make-interval 4.47 4.94)))
+  (add-interval i1 i2))
+
+###2.8###
+
+PROMPT:
+------------------------------------------------------------
+Exercise 2.8.  Using reasoning analogous to Alyssa's, describe how the difference of two intervals may be computed. Define a corresponding subtraction procedure, called sub-interval.
+------------------------------------------------------------
+
+(define (sub-interval x y)
+  (make-interval (- (lower-bound x) (lower-bound y))
+		 (- (upper-bound x) (upper-bound y))))
+
+(let ((i1 (make-interval 6.12 7.48))
+      (i2 (make-interval 4.47 4.94)))
+  (sub-interval i1 i2))
+
+
+This procedure simply takes two intervals as arguments and returns a new interval, which has a lower bound of the difference between lower bounds of x and y, and its upper bound is defined as the difference between the upper bounds of x and y.
+
+###2.9###
+
+PROMPT:
+------------------------------------------------------------
+Exercise 2.9.  The width of an interval is half of the difference between its upper and lower bounds. The width is a measure of the uncertainty of the number specified by the interval. For some arithmetic operations the width of the result of combining two intervals is a function only of the widths of the argument intervals, whereas for others the width of the combination is not a function of the widths of the argument intervals. Show that the width of the sum (or difference) of two intervals is a function only of the widths of the intervals being added (or subtracted). Give examples to show that this is not true for multiplication or division.
+------------------------------------------------------------
+
+consider an interval i1 which has upper bound h1 and lower bound l1, and also consider an interval i2 which has upper bound h2 and lower bound l2:
+
+Using the definition of width, we can combine the intervals through addition, and then find their width.
+
+width = (high - low)/2
+
+total_added_width = ((h1+h2)-(l1+l2))/2
+
+Or, we find that we can find the width of i1 and i2, add their widths, and we have the same result:
+
+width1 = (h1-l1)/2
+width2 = (h2-l2)/2
+combined_added_width = (h1-l1)/2 + (h2-l2)/2 = (h1-l1+h2-l2)/2 = ((h1+h2)-(l1+l2))/2
+
+Now, we can also confirm the same phenomenon with subtraction.
+
+total_subtracted_width = ((h1-h2)-(l1-l2))/2
+
+Now we find each width seperately and combine:
+
+width1 = (h1-l1)/2
+width2 = (h2-l2)/2
+combinded_subracted_width = (h1-l1)/2 - (h2-l2)/2 = ((h1-l1)-(h2-l2))/2 = (h1-l1-h2+l2)/2 = ((h1-h2)-(l1-l2))/2
+
+so, again, we see that the results are the same.
+
+
+Ok, so lets consider multiplication of widths by example.
+
+consider the interval (-1,1) and (-2,3)
+
+When we multiply these intervals, we get (-3, 3), which would give a width of 3. This is not the same as multiplying the widths of the original intervals,
+which is 1*2.5=2.5
+
+Furthermore, the same intervals demonstrate that we cannot derive the widths through division of the intervals.
+
+The process that divides intervals multiplies x times the reciprocal of y.
+
+So first we take the reciprocal fo y (with upper and lower bound switched), which is (1/3,-1/2).
+
+Then we simply have the multiplication process of (-1,1)*(1/3,-1/2), which results in (-1/2,1/2), and a width of 1/2.
+We cannot derive this same width by dividing the widths of x and y, (1/2.5), which results in 2/5.
+
+
+###2.10###
+
+PROMPT:
+------------------------------------------------------------
+Exercise 2.10.  Ben Bitdiddle, an expert systems programmer, looks over Alyssa's shoulder and comments that it is not clear what it means to divide by an interval that spans zero. Modify Alyssa's code to check for this condition and to signal an error if it occurs.
+------------------------------------------------------------
+
+The problem of dividing by an interval that spans 0 is that an interval describes merely where a number could occur. Thus, the number could in fact be 0.
+Our division procedure is allowing a potential division by zero error to procede uninhibited. This should return an undefined, so let's see what that would
+look like.
+
+(define (div-interval x y)
+  (if (and (>= (upper-bound x) 0) (<= (lower-bound y) 0))
+      (error "Division by an interval that spans 0 is undefined:" y)
+      (mul-interval x 
+		    (make-interval (/ 1.0 (upper-bound y))
+				   (/ 1.0 (lower-bound y))))))
+
+
+(define (add-interval x y)
+  (make-interval (+ (lower-bound x) (lower-bound y))
+                 (+ (upper-bound x) (upper-bound y))))
+
+
+(define (mul-interval x y)
+  (let ((p1 (* (lower-bound x) (lower-bound y)))
+        (p2 (* (lower-bound x) (upper-bound y)))
+        (p3 (* (upper-bound x) (lower-bound y)))
+        (p4 (* (upper-bound x) (upper-bound y))))
+    (make-interval (min p1 p2 p3 p4)
+                   (max p1 p2 p3 p4))))
+
+(define (make-interval a b) (cons a b))
+(define (lower-bound i)
+  (car i))
+(define (upper-bound i)
+  (cdr i))
+
+(let ((i1 (make-interval 6.12 7.48))
+      (i2 (make-interval -4.47 4.94)))
+  (div-interval i1 i2))
 
