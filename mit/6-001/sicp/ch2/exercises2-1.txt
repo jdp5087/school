@@ -627,3 +627,121 @@ Here's an implementation using the centers of two intervals
       (j (make-center-percent 4.7 5)))
   (par-res i j))
 ;Value: 6.25782227784731
+
+###2.14###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.14.  Demonstrate that Lem is right. Investigate the behavior of the system on a variety of arithmetic expressions. Make some intervals A and B, and use them in computing the expressions A/A and A/B. You will get the most insight by using intervals whose width is a small percentage of the center value. Examine the results of the computation in center-percent form (see exercise 2.12).
+------------------------------------------------------------
+
+(let ((a (make-center-percent 30 0.01))
+      (b (make-center-percent 20 0.01))
+      (one (make-interval 1 1)))
+  (display "center :")
+  (display (center (mul-interval a b)))
+  (newline)
+  (display "percent:")
+  (display (percent (mul-interval a b)))
+  (newline)
+  (display "center :")
+  (display (center (add-interval a b)))
+  (newline)
+  (display "percent:")
+  (display (percent (add-interval a b)))
+  (newline)
+  (display "center :")
+  (display (center (add-interval (div-interval one a) (div-interval one b))))
+  (newline)
+  (display "percent:")
+  (display (percent (add-interval (div-interval one a) (div-interval one b))))
+  (newline)
+  (display "center :")
+  (display (center (par1 a b)))
+  (newline)
+  (display "percent:")
+  (display (percent (par1 a b)))
+  (newline)  (display "center :")
+  (display (center (par2 a b)))
+  (newline)
+  (display "percent:")
+  (display (percent (par2 a b)))
+  (newline)
+  (let ((d (add-interval a b))
+	(c (mul-interval a b)))
+    (let ((e (make-interval (/ 1 (upper-bound d)) (/ 1 (lower-bound d)))))
+    (display "center :")
+    (display (center (make-interval (/ 1 (upper-bound d)) (/ 1 (lower-bound d)))))
+    (newline)
+    (display "percent:")
+    (display (percent (make-interval (/ 1 (upper-bound d)) (/ 1 (lower-bound d)))))    
+    (newline)
+    (display "center :")
+    (display (center (mul-interval c e)))
+    (newline)
+    (display "percent:")
+    (display (percent (mul-interval c e)))
+    (newline)
+    (display "center :")
+    (newline)
+    (display "percent:")
+    (newline)
+    (display "center :")
+    (newline)
+    (display "percent:")
+    (newline)))))
+
+It appears as though every time an interval is multiplied by another interval that is not one, the percentage resistance increases. This is the case even when an
+interval is multiplied by an inverse. 
+
+center :600.000006
+percent:.01999999980000076
+;;; notice here that (mul-interval a b) results in an increase in the percent tolerance
+center :50.
+percent:9.999999999990905e-3
+center :.08333333416666668
+percent:1.0000000000002236e-2
+;;; while dividing the interval one by any resistance leaves the percentage intact
+center :12.000000480000004
+percent:.02999999919999527
+center :12.
+percent:1.0000000000006299e-2
+center :.0200000002
+percent:9.999999999990789e-3
+;;; This is the inverse of (add-interval a b), which has a percentage that reflects the original percentage
+center :12.000000480000004
+percent:.02999999919999527
+;;; however, multiplying the results of (mul-interval a b) and the inverse of (add-interval a b) increases the percentage tolerance yet again.
+
+I dare to speculate that rounding errors have something to do with it. In the first formula, we multiply the two intervals and then divide by the sum of the same
+intervals. This leads to the numbers going through significant alterations in its value, and then dividing a relatively large value by a very small one (inverse).
+Small rounding errors will result in a significant loss of fidelity in the end result.
+
+In the second formula, the values are relatively resililient, becuase dividing the "one" interval by our values mantains fidelity to our end value throughout the
+calculation (the percentage resistance is not changed just to revert back to its original value again).
+
+###2.15###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.15.  Eva Lu Ator, another user, has also noticed the different intervals computed by different but algebraically equivalent expressions. She says that a formula to compute with intervals using Alyssa's system will produce tighter error bounds if it can be written in such a form that no variable that represents an uncertain number is repeated. Thus, she says, par2 is a ``better'' program for parallel resistances than par1. Is she right? Why?
+------------------------------------------------------------
+
+My answer to the previous question showed that indeed, par2 leads to tigther error bounds than par1. The reason for this is because when we calculate par1, we are using the formula (R1R2/R1+R2). This leads to two uncertain intermediate variables (a product and a sum) which are then divided. While addition does not change the percentage tolerance of an interval, multiplication does. Therefore, multiplication of two uncertain intervals increases the uncertainty. So, we are multiplying by two uncertain variables twice in this calculation, because division is just multiplication by an inverse.
+
+In par2, division is used three times. However, this calculation is slightly different, because we are dividing an interval with no uncertainty (because it is an interval that ranges between 1 and 1). Thus, multiplication of an an interval without uncertainty by the inverse of an interval with uncertainty will not increase the percentage tolerance. In other words, the percentage tolerance will be the same as the inverse of the uncertain interval. This means that for calculating tighter bounds, Eva Lu Ator is correct.
+
+###2.16###
+------------------------------------------------------------
+Exercise 2.16.  Explain, in general, why equivalent algebraic expressions may lead to different answers. Can you devise an interval-arithmetic package that does not have this shortcoming, or is this task impossible? (Warning: This problem is very difficult.)
+------------------------------------------------------------
+
+In the interest of forward progress (and due to the fact that I have very limited time), I'm going to just take a jab at the first part of the question and move on.
+
+I'd say that there are two possible reasons. The first is due to the nature of how numbers are stored in computers. Rounding errors can occur with very small or very large numbers that contain a large number of significant digits. When we are dealing with very small intervals, a number that is stored in IEEE floating point format only allocates 23 bits to store the mantissa of a number (because the other 1 bit indicates whether a number is positive or negative, and 8 bits store the exponent of the number). With very small intervals, every missing significant digit will have an impact on the final outcome of the calculation. Every number that requires rounding will reduce the precision of the end result. Every missing 1/10000th will have an impact when the number is multiplied several times.
+
+The first reason is probably not as significant as the second, which relates to the implementation of a formala. Algebra represents an ideal, and symbolic way to manipulate variables. The last question already hinted at this phenomenon. Since the second equation implemented an interval without uncertainty (the one defined in the let statement), the equation ultimatetely had more fidelity to the outcome resistance than par1. Furthermore, algebra does not assume a layer of abstraction in its governing rules. For instance, the algebraic equation ((R1R2)/(R1+R2)) is equivalent to (1/((1/R1)+(1/r2))), but that is when the variables represent integers or real numbers. It has no way to account for the fact that R1 and R2 actually represent a range of numbers. That is why par2, which uses the interval "one", is more accurate, because an interval with no uncertainty behaves more like an integer or a real number.
+
+NOTE: Curiosity got the best of me, so I looked up the answer to the second part of this question. Apparently, the answer is that a package cannot be developed. And the reason is that repeating an uncertain variable in a calculation results in an implementation that cannot be the same accross equivalent algebraic equations. If the repetition of uncertain variables can be avoided, then a system could be implemented, but in the case of interval arithmetic, that is not possible.
+
+
+
+
