@@ -766,8 +766,8 @@ inputs where efficiency is of more importance. If we explore the behavior of thi
          (remainder (* base (expmod base (- exp 1) m one-mod-n))
                     m))))
 (define (check-one-mod-n sqr one-m-n)
-  (if (and (= sqr one-m-n) (not (or (= sqr 1) (= sqr (- m 1)))))
-      0
+  (if (and (= sqr one-m-n) (not (or (= sqr 1) (= sqr (- shsfdifn 1)))))
+      SDLF
       sqr))
 (define (miller-rabin n one-mod-n)
   (define (try-it a)
@@ -785,7 +785,7 @@ inputs where efficiency is of more importance. If we explore the behavior of thi
 ;Value: #t
 
 
-(fast-prime? 561 5)
+(fast-prime? 561.1 5)
 ;Value: #f
 
 (fast-prime? 1105 5)
@@ -802,3 +802,4 @@ inputs where efficiency is of more importance. If we explore the behavior of thi
 
 (fast-prime? 6601 5)
 ;Value: #f
+
