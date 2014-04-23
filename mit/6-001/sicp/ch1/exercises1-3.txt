@@ -211,10 +211,533 @@ b. the product of all the positive integers less than n that are relatively prim
 (product-rel-primes 10)
 ;Value: 189
 
+###1.34###
+PROMPT:
+------------------------------------------------------------
+Exercise 1.34.  Suppose we define the procedure
+
+(define (f g)
+  (g 2))
+
+Then we have
+
+(f square)
+4
+
+(f (lambda (z) (* z (+ z 1))))
+6
+
+What happens if we (perversely) ask the interpreter to evaluate the combination (f f)? Explain.
+------------------------------------------------------------
+
+Before actually checking this, I'll  just use the substitution model to answer this question. It looks like the interpreter will end up trying to apply the object 2 to 2, so we should get an "object is not applicable" error.
+
+(f f)
+(f 2)
+(2 2)
+
+lets test this result, shall we?
+
+(define f
+  (lambda (g) (g 2)))
+
+(f (lambda (x) (* x x)))
+;Value: 4
+(f (lambda (z) (* z (+ z 1))))
+;Value: 6
+(f f)
+;The object 2 is not applicable.
+
+Ah HA! The reason I knew that was coming is because I write code with lots of bugs, and I've seen that error previously.
+
+###1.35###
+------------------------------------------------------------
+Exercise 1.35.  Show that the golden ratio  (section 1.2.2) is a fixed point of the transformation x   1 + 1/x, and use this fact to compute  by means of the fixed-point procedure.
+------------------------------------------------------------
+
+Good old wikipedia tells us that the golden ratio is defined as:
+
+(a+b)/a = a/b = x
+
+which we can translate to
+
+1+ b/a = 1 + 1/x (because b/a is the reciprocal of x)
+
+so we want to know at what point x = 1 + 1/x, which will be precisely when x is equal to the golden ratio. To see this, consider the following proof:
+
+lemma. The fixed point of 1 + 1/x is equal to the golden ratio.
+
+Proof. By implication. Assume that the golden ratio can be defined as 1 + 1/x. Now, we can substitute value of phi and the reciprocal of phi.
+
+now we know that phi = 1+sqrt(5)/2 and the 1/phi = 1-sqrt(5)/2, therefore:
+
+x = 1 + 1/x
+
+phi = 1 + 1/phi
+
+1+sqrt(5)/2 = 1 + 1-sqrt(5)/2
+
+1+sqrt(5)/2 - 1-sqrt(5)/2 = 1
+
+1+1/2 = 1
+
+1 = 1
+
+Therefore, by implication, if the fixed point of the function f(x) = 1 + 1/x is precisely the golden ratio.
+
+(define tolerance 0.00001)
+(define (fixed-point f first-guess)
+  (define (close-enough? v1 v2)
+    (< (abs (- v1 v2)) tolerance))
+  (define (try guess)
+    (let ((next (f guess)))
+      (if (close-enough? guess next)
+          next
+          (try next))))
+  (try first-guess))
+
+(define (golden-ratio)
+  (fixed-point (lambda (x) (+ 1 (/ 1 x)))
+	       0.1))
+(golden-ratio)
+;Value: 1.6180365296803654
+
+###1.36###
+------------------------------------------------------------
+Exercise 1.36.  Modify fixed-point so that it prints the sequence of approximations it generates, using the newline and display primitives shown in exercise 1.22. Then find a solution to x^x = 1000 by finding a fixed point of x -> log(1000)/log(x). (Use Scheme's primitive log procedure, which computes natural logarithms.) Compare the number of steps this takes with and without average damping. (Note that you cannot start fixed-point with a guess of 1, as this would cause division by log(1) = 0.)
+------------------------------------------------------------
 
 
+(define tolerance 0.00001)
+(define (fixed-point f first-guess)
+  (define (close-enough? v1 v2)
+    (< (abs (- v1 v2)) tolerance))
+  (define (try guess)
+    (let ((next (f guess)))
+      (display next)
+      (newline)
+      (if (close-enough? guess next)
+          next
+          (try next))))
+  (try first-guess))
 
 
+(define (solve-x-to-x x)
+  (fixed-point (lambda (x) (average x (/ (log 1000) (log x))))
+	       2.0))
+
+;;; The following is without average damping.
+(solve-x-to-x 1000)
+
+9.965784284662087
+3.004472209841214
+6.279195757507157
+3.759850702401539
+5.215843784925895
+4.182207192401397
+4.8277650983445906
+4.387593384662677
+4.671250085763899
+4.481403616895052
+4.6053657460929
+4.5230849678718865
+4.577114682047341
+4.541382480151454
+4.564903245230833
+4.549372679303342
+4.559606491913287
+4.552853875788271
+4.557305529748263
+4.554369064436181
+4.556305311532999
+4.555028263573554
+4.555870396702851
+4.555315001192079
+4.5556812635433275
+4.555439715736846
+4.555599009998291
+4.555493957531389
+4.555563237292884
+4.555517548417651
+4.555547679306398
+4.555527808516254
+4.555540912917957
+4.555532270803653
+;Value: 4.555532270803653
 
 
+;;; With average Damping
+5.9828921423310435
+4.922168721308343
+4.628224318195455
+4.568346513136242
+4.5577305909237005
+4.555909809045131
+4.555599411610624
+4.5555465521473675
+4.555537551999825
+;Value: 4.555537551999825
+
+###1.37###
+PROMPT:
+------------------------------------------------------------
+@@@ Most questions that contain formulas don't copy over properly, see SICP for the formulas @@@
+
+Exercise 1.37.  a. An infinite continued fraction is an expression of the form
+
+
+As an example, one can show that the infinite continued fraction expansion with the Ni and the Di all equal to 1 produces 1/, where  is the golden ratio (described in section 1.2.2). One way to approximate an infinite continued fraction is to truncate the expansion after a given number of terms. Such a truncation -- a so-called k-term finite continued fraction -- has the form
+
+
+Suppose that n and d are procedures of one argument (the term index i) that return the Ni and Di of the terms of the continued fraction. Define a procedure cont-frac such that evaluating (cont-frac n d k) computes the value of the k-term finite continued fraction. Check your procedure by approximating 1/ using
+
+(cont-frac (lambda (i) 1.0)
+           (lambda (i) 1.0)
+           k)
+
+for successive values of k. How large must you make k in order to get an approximation that is accurate to 4 decimal places?
+
+b. If your cont-frac procedure generates a recursive process, write one that generates an iterative process. If it generates an iterative process, write one that generates a recursive process.
+------------------------------------------------------------
+
+(define (cont-frac n d k)
+  (define (cont-frac-iter n d k i)
+    (if (= k i)
+	(d i)
+	(/ (n i)
+	   (+ (d i)
+	      (cont-frac-iter n d k (+ i 1))))))
+  (cont-frac-iter n d k 1))
+
+(cont-frac (lambda (i) 1.0)
+	   (lambda (i) 1.0)
+	   1)
+;Value: 1.
+
+(cont-frac (lambda (i) 1.0)
+	   (lambda (i) 1.0)
+	   10)
+;Value: .6179775280898876
+
+(cont-frac (lambda (i) 1.0)
+	   (lambda (i) 1.0)
+	   100)
+;Value: .6180339887498948
+
+(cont-frac (lambda (i) 1.0)
+	   (lambda (i) 1.0)
+	   1000)
+;Value: .6180339887498948
+
+A k-value of 11 gives an accuracy of 4 decimal places.
+
+
+;;; PART B, iterative procedure
+(define (cont-frac n d k)
+  (define (cont-frac-iter i result)
+    (if (= i 0)
+	result
+	(cont-frac-iter (- i 1)
+			(/ (n i)
+			   (+ (d i) result)))))
+  (cont-frac-iter k 0))
+
+(cont-frac (lambda (i) 1.0)
+	   (lambda (i) 1.0)
+	   10)
+;Value: .6179775280898876
+
+###1.38###
+PROMPT:
+------------------------------------------------------------
+Exercise 1.38.  In 1737, the Swiss mathematician Leonhard Euler published a memoir De Fractionibus Continuis, which included a continued fraction expansion for e - 2, where e is the base of the natural logarithms. In this fraction, the Ni are all 1, and the Di are successively 1, 2, 1, 1, 4, 1, 1, 6, 1, 1, 8, .... Write a program that uses your cont-frac procedure from exercise 1.37 to approximate e, based on Euler's expansion.
+------------------------------------------------------------
+
+(define (cont-frac n d k)
+  (define (cont-frac-iter i result)
+    (if (= i 0)
+	result
+	(cont-frac-iter (- i 1)
+			(/ (n i)
+			   (+ (d i) result)))))
+  (cont-frac-iter k 0))
+
+(define (eulers-e k)
+  (+ 2 (cont-frac (lambda (i) 1.0)
+	     (lambda (i) 
+	       (define (d-iter a b c count)
+		 (if (> count i)
+		     c
+		     (if (not (= a 1))
+			 (d-iter b c (+ a b c) (+ count 1))
+			 (d-iter b c 1 (+ count 1)))))
+	       (d-iter 1 0 1 1))
+	     k)))
+
+(eulers-e 1)
+;Value: 3.
+(eulers-e 5)
+;Value: 2.71875
+(eulers-e 10)
+;Value: 2.7182817182817183
+(eulers-e 20)
+;Value: 2.718281828459045
+
+;;; Note here that the d function is relatively inefficient because it calculates the d from 1-i on every iteration.
+;;; A function that stores the history of the last three values returned would be much more efficient.
+
+###1.39###
+PROMPT:
+------------------------------------------------------------
+
+Exercise 1.39.  A continued fraction representation of the tangent function was published in 1770 by the German mathematician J.H. Lambert:
+
+x/(1+(x^2/3+(x^2/5+...)))
+
+where x is in radians. Define a procedure (tan-cf x k) that computes an approximation to the tangent function based on Lambert's formula. K specifies the number of terms to compute, as in exercise 1.37.
+------------------------------------------------------------
+
+(define (cont-frac n d k)
+  (define (cont-frac-iter i result)
+    (if (= i 0)
+	result
+	(cont-frac-iter (- i 1)
+			(/ (n i)
+			   (+ (d i) result)))))
+  (cont-frac-iter k 0))
+
+(define (tan-cf x k)
+  (cont-frac (lambda (i) (if (= i 1)
+			     x
+			     (square x)))
+	     (lambda (i)
+	       (let ((i (- i 1)))
+		 (+ (* 2 i) 1)))
+	     k))
+
+(tan-cf 0 100)
+;Value: 0
+(tan-cf 1 100)
+;Value: 7814594809655758299675164977161393451359073947708228293596488592500466083935897273484260733917100743274590556304622510910032959594503305887483876157957820820491611631410237029487586692275/10260838726957941164598884804808932020838088169874462428061547367033072002369459285733029886959605342770024815149594552964611310213784588100605477239258930324783038699674459441759853673751
+(tan-cf .9 100)
+;Value: .7162978701990245
+(tan-cf -1 100)
+;Value: -7814594809655758299675164977161393451359073947708228293596488592500466083935897273484260733917100743274590556304622510910032959594503305887483876157957820820491611631410237029487586692275/10260838726957941164598884804808932020838088169874462428061547367033072002369459285733029886959605342770024815149594552964611310213784588100605477239258930324783038699674459441759853673751
+(tan-cf -1.1 100)
+;Value: -.8004990217606297
+
+###1.40###
+PROMPT:
+------------------------------------------------------------
+Exercise 1.40.  Define a procedure cubic that can be used together with the newtons-method procedure in expressions of the form
+
+(newtons-method (cubic a b c) 1)
+
+to approximate zeros of the cubic x3 + ax2 + bx + c.
+------------------------------------------------------------
+(define tolerance 0.00001)
+(define (fixed-point f first-guess)
+  (define (close-enough? v1 v2)
+    (< (abs (- v1 v2)) tolerance))
+  (define (try guess)
+    (let ((next (f guess)))
+      (if (close-enough? guess next)
+          next
+          (try next))))
+  (try first-guess))
+
+(define (deriv g)
+  (lambda (x)
+    (/ (- (g (+ x dx)) (g x))
+       dx)))
+(define dx 0.00001)
+(define (newton-transform g)
+  (lambda (x)
+    (- x (/ (g x) ((deriv g) x)))))
+(define (newtons-method g guess)
+  (fixed-point (newton-transform g) guess))
+
+(define (cubic a b c)
+  (lambda (x)
+    (+ ((lambda (x) (* x x x)) x)
+       (* a ((lambda (x) (* x x)) x))
+       (* b x)
+       c)))
+
+(newtons-method (cubic -1 2 -2) 1)
+;Value: 1
+(newtons-method (cubic -3 -4 0) 1)
+;Value: 5.92185302790713e-14 ;;; Which is getting really close to 0
+
+###1.41###
+PROMPT:
+------------------------------------------------------------
+Exercise 1.41.  Define a procedure double that takes a procedure of one argument as argument and returns a procedure that applies the original procedure twice. For example, if inc is a procedure that adds 1 to its argument, then (double inc) should be a procedure that adds 2. What value is returned by
+
+(((double (double double)) inc) 5)
+------------------------------------------------------------
+
+(define (double f)
+  (lambda (x) (f (f x))))
+
+(define (inc a)
+  (+ a 1))
+
+((double inc) 1)
+;Value: 3
+
+(((double (double double)) inc) 5)
+;Value: 21
+
+###1.42###
+PROMPT:
+------------------------------------------------------------
+Exercise 1.42.  Let f and g be two one-argument functions. The composition f after g is defined to be the function x f(g(x)). Define a procedure compose that implements composition. For example, if inc is a procedure that adds 1 to its argument,
+
+((compose square inc) 6)
+49
+------------------------------------------------------------
+
+(define (square x) (* x x))
+
+(define (inc x) (+ x 1))
+
+(define (compose f g)
+  (lambda (x) (f (g x))))
+
+((compose square inc) 6)
+;Value: 49
+
+###1.43###
+PROMPT:
+------------------------------------------------------------
+Exercise 1.43.  If f is a numerical function and n is a positive integer, then we can form the nth repeated application of f, which is defined to be the function whose value at x is f(f(...(f(x))...)). For example, if f is the function x   x + 1, then the nth repeated application of f is the function x   x + n. If f is the operation of squaring a number, then the nth repeated application of f is the function that raises its argument to the 2nth power. Write a procedure that takes as inputs a procedure that computes f and a positive integer n and returns the procedure that computes the nth repeated application of f. Your procedure should be able to be used as follows:
+
+((repeated square 2) 5)
+625
+
+Hint: You may find it convenient to use compose from exercise 1.42.
+------------------------------------------------------------
+(define (square x) (* x x))
+
+(define (compose f g)
+  (lambda (x) (f (g x))))
+
+(define (repeated f n)
+  (if (= n 0)
+      (lambda (x) x)
+      (compose f (repeated f (- n 1)))))
+
+((repeated square 2) 5)
+;Value: 625
+
+###1.44###
+PROMPT:
+------------------------------------------------------------
+Exercise 1.44.  The idea of smoothing a function is an important concept in signal processing. If f is a function and dx is some small number, then the smoothed version of f is the function whose value at a point x is the average of f(x - dx), f(x), and f(x + dx). Write a procedure smooth that takes as input a procedure that computes f and returns a procedure that computes the smoothed f. It is sometimes valuable to repeatedly smooth a function (that is, smooth the smoothed function, and so on) to obtained the n-fold smoothed function. Show how to generate the n-fold smoothed function of any given function using smooth and repeated from exercise 1.43.
+------------------------------------------------------------
+
+(define (compose f g)
+  (lambda (x) (f (g x))))
+
+(define (repeated f n)
+  (if (= n 0)
+      (lambda (x) x)
+      (compose f (repeated f (- n 1)))))
+
+
+(define (smooth f)
+  (define dx 0.00001)
+  (lambda (x) (/ (+ (f (- x dx))
+		    (f x)
+		    (f (+ x dx)))
+		 3)))
+
+(define (square x) (* x x))
+(define (cube x) (* x x x))
+
+((smooth (smooth square)) 5)
+		       
+(define (n-fold-smooth f n)
+  ((repeated smooth n) f))
+
+((smooth (smooth (smooth square))) 5)
+;Value: 25.0000000002
+
+((n-fold-smooth square 3) 5)
+;Value: 125.00000000299997
+
+((smooth (smooth (smooth cube))) 5)
+((n-fold-smooth cube 3) 5)
+;Value: 125.00000000299997
+
+###1.45###
+------------------------------------------------------------
+Exercise 1.45.  We saw in section 1.3.3 that attempting to compute square roots by naively finding a fixed point of y x/y does not converge, and that this can be fixed by average damping. The same method works for finding cube roots as fixed points of the average-damped y  x/y2. Unfortunately, the process does not work for fourth roots -- a single average damp is not enough to make a fixed-point search for y  x/y3 converge. On the other hand, if we average damp twice (i.e., use the average damp of the average damp of y  x/y3) the fixed-point search does converge. Do some experiments to determine how many average damps are required to compute nth roots as a fixed-point search based upon repeated average damping of y  x/yn-1. Use this to implement a simple procedure for computing nth roots using fixed-point, average-damp, and the repeated procedure of exercise 1.43. Assume that any arithmetic operations you need are available as primitives.
+------------------------------------------------------------
+
+(define (average-damp f)
+  (define (average x y)
+    (/ (+ x y) 2))
+  (lambda (x) (average x (f x))))
+
+(define tolerance 0.00001)
+(define (fixed-point f first-guess)
+  (define (close-enough? v1 v2)
+    (< (abs (- v1 v2)) tolerance))
+  (define (try guess)
+    (let ((next (f guess)))
+      (if (close-enough? guess next)
+          next
+          (try next))))
+  (try first-guess))
+
+(define (compose f g)
+  (lambda (x) (f (g x))))
+
+(define (repeated f n)
+  (if (= n 0)
+      (lambda (x) x)
+      (compose f (repeated f (- n 1)))))
+
+(define (sqrt x)
+  (fixed-point (average-damp (lambda (y) (/ x y)))
+	       1.0))
+
+(define (naive-sqrt x)
+  (fixed-point (lambda (y) (/ x y))
+	       1.0))
+
+(naive-sqrt 4)
+;;; Doesn't converge (obviously)
+
+
+;;; This was part of my experiment, better implementation below.
+(define (nth-root x n damps)
+  (fixed-point ((repeated average-damp damps) (lambda (y) (/ x (expt y (- n 1)))))
+	       1.0))
+
+(nth-root 256 64 6)
+
+;;; Requires log(n) damps for 2, make sure to test other numbers
+
+
+(define (lg n b)
+  (define (lg-iter n count)
+    (if (< n b)
+	count
+	(lg-iter (/ n b) (+ count 1))))
+  (lg-iter n 0))
+
+(define (nth-root x n)
+  (fixed-point ((repeated average-damp (lg n 2)) (lambda (y) (/ x (expt y (- n 1)))))
+	       1.0))
+
+(nth-root 256 64)
+;;; Converges up to n = 200 (I didn't bother checking past that)
+
+###1.46###
+PROMPT:
+------------------------------------------------------------
+------------------------------------------------------------
 

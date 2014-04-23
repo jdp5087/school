@@ -112,7 +112,8 @@
 (root2 3 0 1)
 ;Value: #f
 
-
+(root1 -9.2 20 -10)
+(root2 -9.2 20 -10)
 
 ;; Problem 3
 
