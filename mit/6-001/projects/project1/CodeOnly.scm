@@ -1,3 +1,8 @@
+;;(cd "~/Documents/school/mit/6-001/projects/project1")
+;;(cd "c:/school/mit/6-001/projects/project1")
+;;(load "../../lib.scm")
+
+
 (define square
   (lambda (x) (* x x)))
 
@@ -7,63 +12,67 @@
        (* v t)
        u)))
 
-(define (root1 a b c)
-  (define quad-radical-algebra
-    (lambda (a b c)
-      (- (square b) (* 4 a c))))
-  (define quad-radical
-    (lambda (a b c)
-      (sqrt (quad-radical-algebra a b c))))
-  (define quad-flex
-    (lambda (a b c sign)
-      (/ (sign (- b) (quad-radical a b c))
-	 (* 2 a))))
-    (if (or (= a 0) (< (quad-radical-algebra a b c) 0))
+(define (root-flex a b c sign)
+  (define (radical-inner)
+    (- (square b) (* 4 a c)))
+  (define (radical)
+    (sqrt (radical-inner)))
+  (define (quad)
+    (/ (sign (- b) (radical))
+       (* 2 a)))
+  (let ((rad (radical-inner)))
+    (if (or (= a 0) (< rad 0))
 	false
-	(quad-flex a b c +)))
+	(quad))))
+
+(define (root1 a b c)
+  (root-flex a b c -))
 
 (define (root2 a b c)
-  (define quad-radical-algebra
-    (lambda (a b c)
-      (- (square b) (* 4 a c))))
-  (define quad-radical
-    (lambda (a b c)
-      (sqrt (quad-radical-algebra a b c))))
-  (define quad-flex
-    (lambda (a b c sign)
-      (/ (sign (- b) (quad-radical a b c))
-	 (* 2 a))))
-    (if (or (= a 0) (< (quad-radical-algebra a b c) 0))
-	false
-	(quad-flex a b c -)))
-
+  (root-flex a b c +))
 
 (define time-to-impact
   (lambda (vertical-velocity elevation)
-    (let ((r1 (root1 -9.8 vertical-velocity elevation))
-	  (r2 (root2 -9.8 vertical-velocity elevation)))
-      (if (> r1 r2)
-	  r1
-	  r2))))
+    (if (or (< vertical-velocity 0) (< elevation 0))
+	false
+	(let ((r1 (root1 -9.8 vertical-velocity elevation))
+	      (r2 (root2 -9.8 vertical-velocity elevation)))
+	  (if (> r1 r2)
+	      r1
+	      r2)))))
 
 (define time-to-height
   (lambda (vertical-velocity elevation target-elevation)
-    (let ((r1 (root1 -9.8 vertical-velocity (- elevation target-elevation)))
-	  (r2 (root2 -9.8 vertical-velocity (- elevation target-elevation))))
-      (if (> r1 r2)
-	  r1
-	  r2))))
+    (if (or (< vertical-velocity 0) (< elevation 0))
+	false
+	(let ((r1 (root1 -9.8 vertical-velocity (- elevation target-elevation)))
+	      (r2 (root2 -9.8 vertical-velocity (- elevation target-elevation))))
+	  (if (
+	      false
+	      (if (> r1 r2)
+		  r1
+		  r2))))))
+
+(define (run-tests os)
+  (if (string=? os "w")
+      (cd "c:/school/mit/6-001/projects/project1")
+      (cd "~/Documents/school/mit/6-001/projects/project1"))
+  (load "../../lib.scm")
+  (load "test_basebot.scm"))
+
+
+(run-tests "w")
 
 
 
-(define (test v1 v2)
-  (define tolerance 0.0001)
-  (if (< (abs (- v1 v2)) tolerance)
-      (display "Test passed\n")
-      (display 
+(define (complex-predicate a b)
+  (if (and (boolean? a) (boolean? b))
+      false
+      (cond ((boolean? a) (> b 0))
+	    ((boolean? b) (> a 0))
+	    ((and (< 0 a) (< 0 b)) 
+	  
 
 
 
-(let ((v1 8)
-      (v2 9))
-  (display v1 v2))
+

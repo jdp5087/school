@@ -57,38 +57,24 @@
 
 ;; Problem 2
 
+(define (root-flex a b c sign)
+  (define (radical-inner)
+    (- (square b) (* 4 a c)))
+  (define (radical)
+    (sqrt (radical-inner)))
+  (define (quad)
+    (/ (sign (- b) (radical))
+       (* 2 a)))
+  (let ((rad (radical-inner)))
+    (if (or (= a 0) (< rad 0))
+	false
+	(quad))))
 
 (define (root1 a b c)
-  (define quad-radical-algebra
-    (lambda (a b c)
-      (- (square b) (* 4 a c))))
-  (define quad-radical
-    (lambda (a b c)
-      (sqrt (quad-radical-algebra a b c))))
-  (define quad-flex
-    (lambda (a b c sign)
-      (/ (sign (- b) (quad-radical a b c))
-	 (* 2 a))))
-    (if (or (= a 0) (< (quad-radical-algebra a b c) 0))
-	false
-	(quad-flex a b c +)))
+  (root-flex a b c -))
 
 (define (root2 a b c)
-  (define quad-radical-algebra
-    (lambda (a b c)
-      (- (square b) (* 4 a c))))
-  (define quad-radical
-    (lambda (a b c)
-      (sqrt (quad-radical-algebra a b c))))
-  (define quad-flex
-    (lambda (a b c sign)
-      (/ (sign (- b) (quad-radical a b c))
-	 (* 2 a))))
-    (if (or (= a 0) (< (quad-radical-algebra a b c) 0))
-	false
-	(quad-flex a b c -)))
-
-
+  (root-flex a b c +))
 
 ;; complete these procedures and show some test cases
 
