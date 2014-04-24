@@ -31,27 +31,106 @@
 (define (root2 a b c)
   (root-flex a b c +))
 
-(define time-to-impact
-  (lambda (vertical-velocity elevation)
-    (if (or (< vertical-velocity 0) (< elevation 0))
-	false
-	(let ((r1 (root1 -9.8 vertical-velocity elevation))
-	      (r2 (root2 -9.8 vertical-velocity elevation)))
-	  (if (> r1 r2)
-	      r1
-	      r2)))))
+(define (time-to-flex vertical-velocity elevation target-elevation predicate height-func)
+  (if (or (< vertical-velocity 0) (< elevation 0))
+      false
+      (let ((r1 (root1 (/ -9.8 2) vertical-velocity (height-func elevation target-elevation)))
+	    (r2 (root2 (/ -9.8 2) vertical-velocity (height-func elevation target-elevation))))
+	(if (predicate r1 r2)
+	    (if (> r1 r2)
+		r1
+		r2)
+	    false))))
 
-(define time-to-height
-  (lambda (vertical-velocity elevation target-elevation)
-    (if (or (< vertical-velocity 0) (< elevation 0))
-	false
-	(let ((r1 (root1 -9.8 vertical-velocity (- elevation target-elevation)))
-	      (r2 (root2 -9.8 vertical-velocity (- elevation target-elevation))))
-	  (if (
-	      false
-	      (if (> r1 r2)
-		  r1
-		  r2))))))
+(define (complex-predicate a b)
+      (if (and (boolean? a) (boolean? b))
+	  false
+	  (cond ((boolean? a) (> b 0))
+		((boolean? b) (> a 0))
+		(else (and (>= a 0) (>= a 0))))))
+
+(define (time-to-impact vertical-velocity elevation)
+  (time-to-flex vertical-velocity
+		elevation
+		false
+		complex-predicate
+		(lambda (x y) x)))
+
+(define (time-to-height vertical-velocity elevation target-elevation)
+  (time-to-flex vertical-velocity
+		elevation
+		target-elevation
+		complex-predicate
+		(lambda (x y) (- x y))))
+
+(define (product-iter a b term next check compare)
+  (define (iter a result)
+    (if (compare (check a) (check b))
+	result
+	(iter (next a) (* result (term a)))))
+  (iter a 1.0))
+
+(define (pi-approx start-pair stop-pair)
+  (define (pi-term a)
+    (/ (car a) (cdr a)))
+  (define (pi-next a)
+    (if (> (car a) (cdr a))
+	(cons (car a) (+ (cdr a) 2.0))
+	(cons (+ (car a) 2.0) (cdr a))))
+  (product-iter start-pair stop-pair pi-term pi-next pi-term =))
+
+(define pi (* 4 (pi-approx (cons 2.0 3.0) (cons 1000.0 1001.0))))
+
+
+(define degree2radian
+  (lambda (deg)
+    (/ (*  deg pi) 180.)))
+
+(define meters-to-feet
+  (lambda (m)
+    (/ (* m 39.6) 12)))
+
+(define feet-to-meters
+  (lambda (f)
+    (/ (* f 12) 39.6)))
+
+(define hours-to-seconds
+  (lambda (h)
+    (* h 3600)))
+
+(define seconds-to-hours
+  (lambda (s)
+    (/ s 3600)))
+
+(define (mph-to-mps rate)
+  (/ (feet-to-meters (* rate 5280)) (hours-to-seconds 1)))
+
+(define (mps-to-mph rate)
+  (/ (/ (meters-to-feet rate) 5280) (seconds-to-hours 1)))
+
+(define (travel-distance-simple velocity angle elevation)
+  (define (distance-horizontal v a t)
+    (* v (cos a) t))
+  (let ((e (feet-to-meters elevation))
+	(v (mph-to-mps velocity))
+	(a (degree2radian angle)))
+    (let ((t (time-to-impact (* (sin a) v) e)))
+      (disp "t: " t "\n")
+      (disp "e: " e "\n")
+      (disp "v: " v "\n")
+      (disp "a: " a "\n")
+      (distance-horizontal v a t))))
+
+
+
+(meters-to-feet (travel-distance-simple 100 45 3))
+
+(sin (degree2radian 90))
+
+
+    
+    
+
 
 (define (run-tests os)
   (if (string=? os "w")
@@ -65,13 +144,6 @@
 
 
 
-(define (complex-predicate a b)
-  (if (and (boolean? a) (boolean? b))
-      false
-      (cond ((boolean? a) (> b 0))
-	    ((boolean? b) (> a 0))
-	    ((and (< 0 a) (< 0 b)) 
-	  
 
 
 

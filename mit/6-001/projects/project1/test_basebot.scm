@@ -41,7 +41,7 @@
   (test-equivalence false (time-to-impact 100 -20))
   (test-equivalence false (time-to-impact -100 20)))
 
-(root1 -9.8 100 -21)			;
+(root1 -9.8 100 -21)
 (root2 -9.8 100 -21)
 
 (define (test-time-to-height)
@@ -51,12 +51,21 @@
   (test-equivalence false (time-to-height 100 -1 22))
   (test-equivalence false (time-to-height 1 1 10)))
 
-(test-time-to-height)
+(define (test-mps-to-mph)
+  (disp "Running tests for mps-to-mph procedure\n")
+  (test-equivalence 101.25 (mps-to-mph 45)))
+
+(define (test-mph-to-mps)
+  (disp "Running tests for mph-to-mps procedure\n")
+  (test-equivalence 44.444 (mph-to-mps 100)))
 
 (define (test-all)
   (test-position)
   (test-roots)
-  (test-time-to-impact))
+  (test-time-to-impact)
+  (test-time-to-height)
+  (test-mps-to-mph)
+  (test-mph-to-mps))
 
 (disp "\n\n")
 (test-all)
