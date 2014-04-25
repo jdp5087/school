@@ -115,17 +115,30 @@
 	(v (mph-to-mps velocity))
 	(a (degree2radian angle)))
     (let ((t (time-to-impact (* (sin a) v) e)))
-      (disp "t: " t "\n")
-      (disp "e: " e "\n")
-      (disp "v: " v "\n")
-      (disp "a: " a "\n")
       (distance-horizontal v a t))))
 
+(travel-distance-simple 100 45 3)
+
+(define (find-best-angle velocity elevation)
+  (define (greater-angle current-distance best-distance current-angle best-angle)
+    (if (> current-distance best-distance)
+	current-angle
+	best-angle))
+  (define (greater-distance current-distance best-distance)
+    (if (> current-distance best-distance)
+	current-distance
+	best-distance))
+  (define (find-best-angle-iter velocity angle elevation best-angle best-distance)
+    (if (> angle 90)
+	best-angle
+	(let ((distance (travel-distance-simple velocity angle elevation)))
+	  (find-best-angle-iter velocity (+ angle 1) elevation (greater-angle distance best-distance angle best-angle) (greater-distance distance best-distance)))))
+  (find-best-angle-iter velocity 0 elevation 0 0))
+
+(find-best-angle 100 3)
 
 
-(meters-to-feet (travel-distance-simple 100 45 3))
 
-(sin (degree2radian 90))
 
 
     

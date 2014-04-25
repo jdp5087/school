@@ -35,18 +35,15 @@
 
 (define (test-time-to-impact)
   (disp "Running tests for time-to-impact procedure\n")
-  (test-equivalence 10.2140 (time-to-impact 100 1))
+  (test-equivalence 20.4181 (time-to-impact 100 1))
   (test-equivalence 0 (time-to-impact 0 0))
-  (test-equivalence 1 (time-to-impact 0 9.8))
+  (test-equivalence 1.4142 (time-to-impact 0 9.8))
   (test-equivalence false (time-to-impact 100 -20))
   (test-equivalence false (time-to-impact -100 20)))
 
-(root1 -9.8 100 -21)
-(root2 -9.8 100 -21)
-
 (define (test-time-to-height)
   (disp "Running tests for time-to-height procedure\n")
-  (test-equivalence 9.9895 (time-to-height 100 1 22))
+  (test-equivalence 20.1959 (time-to-height 100 1 22))
   (test-equivalence false (time-to-height -100 1 22))
   (test-equivalence false (time-to-height 100 -1 22))
   (test-equivalence false (time-to-height 1 1 10)))
@@ -59,16 +56,61 @@
   (disp "Running tests for mph-to-mps procedure\n")
   (test-equivalence 44.444 (mph-to-mps 100)))
 
+(define (test-degree-to-radian)
+  (disp "Running tests for degree2radian\n")
+  (test-equivalence 3.1430 (degree2radian 180))
+  (test-equivalence 0 (degree2radian 0)))
+
+(define (test-meters-to-feet)
+  (disp "Running tests for meters-to-feet\n")
+  (test-equivalence 3.300000000000 (meters-to-feet 1)))
+
+(define (test-feet-to-meters)
+  (disp "Running tests for feet-to-meters\n")
+  (test-equivalence 1 (feet-to-meters 3.300000000)))
+
+(define (test-hours-to-seconds)
+  (disp "Running tests for hours-to-seconds\n")
+  (test-equivalence 3600 (hours-to-seconds 1)))
+
+(define (test-seconds-to-hours)
+  (disp "Running tests for seconds-to-hours\n")
+  (test-equivalence 1 (seconds-to-hours 3600)))
+
+(define (test-mph-to-mps)
+  (disp "Running tests for mph-to-mps\n")
+  (test-equivalence 44.444444 (mph-to-mps 100.0)))
+
+(define (test-mps-to-mph)
+  (disp "Running tests for mps-to-mph\n")
+  (test-equivalence 101.25 (mps-to-mph 45)))
+
+(define (test-travel-distance-simple)
+  (disp "Running tests for travel-distance-simple\n")
+  (test-equivalence 22.2306 (meters-to-feet (travel-distance-simple 100 89 3)))
+  (test-equivalence 668.1390 (meters-to-feet (travel-distance-simple 100 45 3)))
+  (test-equivalence 63.1738 (meters-to-feet (travel-distance-simple 100 0 3))))
+
 (define (test-all)
   (test-position)
   (test-roots)
   (test-time-to-impact)
   (test-time-to-height)
   (test-mps-to-mph)
-  (test-mph-to-mps))
+  (test-mph-to-mps)
+  (test-degree-to-radian)
+  (test-meters-to-feet)
+  (test-feet-to-meters)
+  (test-hours-to-seconds)
+  (test-seconds-to-hours)
+  (test-mph-to-mps)
+  (test-mps-to-mph)
+  (test-travel-distance-simple))
 
 (disp "\n\n")
 (test-all)
+
+
 
 
 
