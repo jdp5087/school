@@ -91,6 +91,10 @@
   (test-equivalence 668.1390 (meters-to-feet (travel-distance-simple 100 45 3)))
   (test-equivalence 63.1738 (meters-to-feet (travel-distance-simple 100 0 3))))
 
+(define (test-find-best-angle)
+  (disp "Running tests for find-best-angle\n")
+  (test-equivalence 45 (find-best-angle 100 3)))
+
 (define (test-all)
   (test-position)
   (test-roots)
@@ -105,7 +109,8 @@
   (test-seconds-to-hours)
   (test-mph-to-mps)
   (test-mps-to-mph)
-  (test-travel-distance-simple))
+  (test-travel-distance-simple)
+  (test-find-best-angle))
 
 (disp "\n\n")
 (test-all)

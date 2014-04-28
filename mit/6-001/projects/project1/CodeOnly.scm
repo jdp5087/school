@@ -135,7 +135,21 @@
 	  (find-best-angle-iter velocity (+ angle 1) elevation (greater-angle distance best-distance angle best-angle) (greater-distance distance best-distance)))))
   (find-best-angle-iter velocity 0 elevation 0 0))
 
-(find-best-angle 100 3)
+(define drag-coeff 0.5)
+(define density 1.25)  ; kg/m^3
+(define mass .145)  ; kg
+(define diameter 0.074)  ; m
+(define beta (* .5 drag-coeff density (* 3.14159 .25 (square diameter))))
+
+(define (integrate x0 y0 u0 v0 dt g m beta)
+  (let ((x-tot 0)
+	(y-tot h)
+	(u-tot u0)
+	(v-tot v0))
+    (define (integrate-iter x y u v)
+      (if (< 0 y)
+	  x?
+    
 
 
 
