@@ -8,8 +8,13 @@
     (if (eqv? goal value)
 	(display "Test passed\n")
 	(disp value " is not equivalent to " goal "\n")))
+  (define (pair-equiv goal value)
+    (if (and (< (abs (- (car value) (car goal)))) (< (abs (- (cdr value) (cdr goal)))))
+	(display "Test passed\n")
+	(disp value " is not equivalent to " goal "\n")))
   (cond ((number? value) (num-equiv goal value))
-	((boolean? value) (bool-equiv goal value))))
+	((boolean? value) (bool-equiv goal value))
+	((pair? value) (pair-equiv goal value))))
 
 (define (test-position)
   (disp "Running tests for position procedure\n")
@@ -95,6 +100,39 @@
   (disp "Running tests for find-best-angle\n")
   (test-equivalence 45 (find-best-angle 100 3)))
 
+(define (test-integrate)
+  (define drag-coeff 0.5)
+  (define density 1.25)  ; kg/m^3
+  (define mass .145)  ; kg
+  (define diameter 0.074)  ; m
+  (define beta (* .5 drag-coeff density (* 3.14159 .25 (square diameter))))
+  (define (u-component V alpha)
+    (* V (cos (degree2radian alpha))))
+  (define (v-component V alpha)
+    (* V (sin (degree2radian alpha))))
+  (disp "Running tests for integrate\n")
+  (test-equivalence 93.5311 (integrate 0 3 (u-component 45 45) (v-component 45 45) 0.1 9.8 .145 beta))
+  (test-equivalence 3.0597 (integrate 0 3 (u-component 45 89) (v-component 45 89) 0.1 9.8 .145 beta))
+  (test-equivalence 62.5881 (integrate 0 3 (u-component 45 10) (v-component 45 10) 0.1 9.8 .145 beta))
+  (test-equivalence 94.2068 (integrate 0 3 (u-component 45 30) (v-component 45 30) 0.1 9.8 .145 beta)))
+
+(define (test-travel-distance)
+  (disp "Running tests for travel-distance\n")
+  (test-equivalence 304.2619 (travel-distance 3 101.25 45))
+  (test-equivalence 269.0522 (travel-distance 3 90.0 45))
+  (test-equivalence 231.5475 (travel-distance 3 78.75 45)))
+
+(define (test-find-hr-angle)
+  (disp "Running tests for find-hr-angle\n")
+  (test-equivalence (cons 33 46) (find-home-run-angle 3 100)))
+
+(define (test-find-fastest-throw)
+  (disp "Running tests for find-fastest-throw\n")
+  (test-equivalence 3.619 (find-fastest-throw 6 (mps-to-mph 45) (meters-to-feet 90)))
+  (test-equivalence 0 (find-fastest-throw 6 (mps-to-mph 5) (meters-to-feet 90))))
+
+
+
 (define (test-all)
   (test-position)
   (test-roots)
@@ -110,18 +148,11 @@
   (test-mph-to-mps)
   (test-mps-to-mph)
   (test-travel-distance-simple)
-  (test-find-best-angle))
+  (test-find-best-angle)
+  (test-integrate)
+  (test-travel-distance)
+  (test-find-hr-angle)
+  (test-find-fastest-throw))
 
 (disp "\n\n")
 (test-all)
-
-
-
-
-
-
-
-
-
-
-

@@ -90,6 +90,9 @@
   (lambda (m)
     (/ (* m 39.6) 12)))
 
+(define (meters-to-feet-pair x)
+  (cons (meters-to-feet (car x)) (cdr x)))
+
 (define feet-to-meters
   (lambda (f)
     (/ (* f 12) 39.6)))
@@ -141,23 +144,169 @@
 (define diameter 0.074)  ; m
 (define beta (* .5 drag-coeff density (* 3.14159 .25 (square diameter))))
 
+
 (define (integrate x0 y0 u0 v0 dt g m beta)
-  (let ((x-tot 0)
-	(y-tot h)
-	(u-tot u0)
-	(v-tot v0))
-    (define (integrate-iter x y u v)
-      (if (< 0 y)
-	  x?
+  (define (square x) (* x x))
+  (define inverse-m (/ 1 m))
+  (define (hypotenuse u v)
+    (sqrt (+ (square u) (square v))))
+  (define (common-part u v)
+    (* inverse-m beta (hypotenuse u v)))
+  (define (dx u) (* u dt))
+  (define (dy v) (* v dt))
+  (define (du u v)
+    (* -1 (common-part u v) u dt))
+  (define (dv u v)
+    (* (* -1 (+ (* (common-part u v) v) g)) dt))
+  (define (integrate-iter x y u v)
+    (if (< y 0)
+	x
+	(integrate-iter (+ x (dx u))
+			(+ y (dy v))
+			(+ u (du u v))
+			(+ v (dv u v)))))
+  (integrate-iter x0 y0 u0 v0))
+
+
+(define (travel-distance elevation velocity angle)
+  (define (u-component V alpha)
+    (* V (cos alpha)))
+  (define (v-component V alpha)
+    (* V (sin alpha)))
+  (meters-to-feet (integrate 0
+			     (feet-to-meters elevation)
+			     (u-component (mph-to-mps velocity) (degree2radian angle))
+			     (v-component (mph-to-mps velocity) (degree2radian angle))
+			     0.01
+			     9.8
+			     mass
+			     beta)))
+	     
+(define (find-home-run-angle elevation velocity)
+  (let ((l 0)
+	(h 0))
+    (define (test-l distance angle)
+      (if (and (= l 0) (> distance 300))
+	  (set! l angle)))
+    (define (test-h distance angle)
+      (if (and (not (= l 0)) (< distance 300))
+	  (set! h angle)))
+    (define (test-l-h distance angle)
+      (test-l distance angle)
+      (test-h distance angle))
+    (define (run-tests-and-iterate distance angle)
+      (test-l-h distance angle)
+      (hr-iter (+ angle 1)))
+    (define (hr-iter angle)
+      (let ((distance (travel-distance elevation velocity angle)))
+	(if (and (not (= l 0)) (not (= h 0)))
+	    (cons l h)
+	    (run-tests-and-iterate distance angle))))
+    (hr-iter 0)))
+
+
+(define (integrate-with-time x0 y0 u0 v0 dt g m beta)
+  (define (square x) (* x x))
+  (define inverse-m (/ 1 m))
+  (define (hypotenuse u v)
+    (sqrt (+ (square u) (square v))))
+  (define (common-part u v)
+    (* inverse-m beta (hypotenuse u v)))
+  (define (dx u) (* u dt))
+  (define (dy v) (* v dt))
+  (define (du u v)
+    (* -1 (common-part u v) u dt))
+  (define (dv u v)
+    (* (* -1 (+ (* (common-part u v) v) g)) dt))
+  (define (integrate-iter x y u v t)
+    (if (< y 0)
+	(cons x t)
+	(integrate-iter (+ x (dx u))
+			(+ y (dy v))
+			(+ u (du u v))
+			(+ v (dv u v))
+			(+ t dt))))
+  (integrate-iter x0 y0 u0 v0 0))
+
+(define (travel-distance-time elevation velocity angle)
+  (define (u-component V alpha)
+    (* V (cos alpha)))
+  (define (v-component V alpha)
+    (* V (sin alpha)))
+  (meters-to-feet-pair (integrate-with-time 0
+			     (feet-to-meters elevation)
+			     (u-component (mph-to-mps velocity) (degree2radian angle))
+			     (v-component (mph-to-mps velocity) (degree2radian angle))
+			     0.01
+			     9.8
+			     mass
+			     beta)))
+
+(define (find-fastest-throw elevation velocity distance)
+  (define tolerance 1)
+  (define (faster? guess best)
+    (if (or (and (= (cdr best) 0) (< (abs (- (car guess) distance)) tolerance))
+	    (and (< (cdr guess) (cdr best)) (< (- (car guess) distance) tolerance)))
+	guess
+	best))
+  (define (find-fastest-throw-iter angle best)
+    (let ((result (travel-distance-time elevation velocity angle)))
+      (if (> angle 89)
+	  (cdr best)
+	  (find-fastest-throw-iter (+ angle 0.1) (faster? result best)))))
+  (find-fastest-throw-iter -89.9 (cons 0 0)))
+
+(define (bounce-crude elevation velocity angle bounces)
+  (let ((total-distance 0))
+    (define (get-elevation b)
+      (if (= b bounces)
+	  elevation
+	  0))
+    (define (set-and-iter e v b)
+      (set! total-distance (+ total-distance (travel-distance e v angle)))
+      (bounce-iter (/ v 2) (- b 1)))
+    (define (bounce-iter v b)
+      (if (< b 0)
+	  total-distance
+	  (set-and-iter (get-elevation b) v b)))
+    (bounce-iter velocity bounces)))
+
+(bounce-crude 6 100 30 3)
+
+(define (integrate-with-u-and-v x0 y0 u0 v0 dt g m beta)
+  (define (square x) (* x x))
+  (define inverse-m (/ 1 m))
+  (define (hypotenuse u v)
+    (sqrt (+ (square u) (square v))))
+  (define (common-part u v)
+    (* inverse-m beta (hypotenuse u v)))
+  (define (dx u) (* u dt))
+  (define (dy v) (* v dt))
+  (define (du u v)
+    (* -1 (common-part u v) u dt))
+  (define (dv u v)
+    (* (* -1 (+ (* (common-part u v) v) g)) dt))
+  (define (integrate-iter x y u v t)
+    (if (< y 0)
+	(cons x t)
+	(integrate-iter (+ x (dx u))
+			(+ y (dy v))
+			(+ u (du u v))
+			(+ v (dv u v))
+			(+ t dt))))
+  (integrate-iter x0 y0 u0 v0 0))
+ 
+	  
+
     
+	  
+  
 
 
+(integrate-with-time 0 3 (u-component 45 45) (v-component 45 45) 0.1 9.8 .145 beta)
 
 
-
-    
-    
-
+;;; hrs are about %4 to %7 longer in Denver than Boston
 
 (define (run-tests os)
   (if (string=? os "w")
@@ -167,7 +316,7 @@
   (load "test_basebot.scm"))
 
 
-(run-tests "w")
+(run-tests "l")
 
 
 
