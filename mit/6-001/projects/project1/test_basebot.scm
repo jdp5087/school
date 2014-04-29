@@ -131,6 +131,19 @@
   (test-equivalence 3.619 (find-fastest-throw 6 (mps-to-mph 45) (meters-to-feet 90)))
   (test-equivalence 0 (find-fastest-throw 6 (mps-to-mph 5) (meters-to-feet 90))))
 
+(define (test-bounce-crude)
+  (disp "Running tests for test-bounce-crude\n")
+  (test-equivalence 305.6798 (bounce-crude 6 (mps-to-mph 45) 45 0))
+  (test-equivalence 432.2892 (bounce-crude 6 (mps-to-mph 45) 45 1))
+  (test-equivalence 471.6635 (bounce-crude 6 (mps-to-mph 45) 45 2))
+  (test-equivalence 482.2413 (bounce-crude 6 (mps-to-mph 45) 45 3)))
+
+(define (test-bounce-less-crude)
+  (disp "Running tests for test-bounce-crude\n")
+  (test-equivalence 305.6798 (bounce-less-crude 6 (mps-to-mph 45) 45 0))
+  (test-equivalence 341.2215 (bounce-less-crude 6 (mps-to-mph 45) 45 1))
+  (test-equivalence 347.8648 (bounce-less-crude 6 (mps-to-mph 45) 45 2))
+  (test-equivalence 349.2478 (bounce-less-crude 6 (mps-to-mph 45) 45 3)))
 
 
 (define (test-all)
@@ -152,7 +165,9 @@
   (test-integrate)
   (test-travel-distance)
   (test-find-hr-angle)
-  (test-find-fastest-throw))
+  (test-find-fastest-throw)
+  (test-bounce-crude)
+  (test-bounce-less-crude))
 
 (disp "\n\n")
 (test-all)

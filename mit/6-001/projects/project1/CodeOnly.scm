@@ -1,7 +1,6 @@
-;;(cd "~/Documents/school/mit/6-001/projects/project1")
+;(cd "~/Documents/school/mit/6-001/projects/project1")
 ;;(cd "c:/school/mit/6-001/projects/project1")
 ;;(load "../../lib.scm")
-
 
 (define square
   (lambda (x) (* x x)))
@@ -167,6 +166,10 @@
 			(+ v (dv u v)))))
   (integrate-iter x0 y0 u0 v0))
 
+(define (u-component V alpha)
+  (* V (cos (degree2radian alpha))))
+(define (v-component V alpha)
+  (* V (sin (degree2radian alpha))))
 
 (define (travel-distance elevation velocity angle)
   (define (u-component V alpha)
@@ -271,7 +274,7 @@
 	  (set-and-iter (get-elevation b) v b)))
     (bounce-iter velocity bounces)))
 
-(bounce-crude 6 100 30 3)
+
 
 (define (integrate-with-u-and-v x0 y0 u0 v0 dt g m beta)
   (define (square x) (* x x))
@@ -286,25 +289,46 @@
     (* -1 (common-part u v) u dt))
   (define (dv u v)
     (* (* -1 (+ (* (common-part u v) v) g)) dt))
-  (define (integrate-iter x y u v t)
+  (define (integrate-iter x y u v)
     (if (< y 0)
-	(cons x t)
+	(cons x (hypotenuse u v))
 	(integrate-iter (+ x (dx u))
 			(+ y (dy v))
 			(+ u (du u v))
-			(+ v (dv u v))
-			(+ t dt))))
-  (integrate-iter x0 y0 u0 v0 0))
- 
-	  
-
-    
-	  
-  
+			(+ v (dv u v)))))
+  (integrate-iter x0 y0 u0 v0))
 
 
-(integrate-with-time 0 3 (u-component 45 45) (v-component 45 45) 0.1 9.8 .145 beta)
+(define (travel-distance-bounce elevation velocity angle)
+  (define (u-component V alpha)
+    (* V (cos alpha)))
+  (define (v-component V alpha)
+    (* V (sin alpha)))
+  (meters-to-feet-pair (integrate-with-u-and-v 0
+					       (feet-to-meters elevation)
+					       (u-component (mph-to-mps velocity) (degree2radian angle))
+					       (v-component (mph-to-mps velocity) (degree2radian angle))
+					       0.01
+					       9.8
+					       mass
+					       beta)))
 
+ 	  
+(define (bounce-less-crude elevation velocity angle bounces)
+  (let ((total-distance 0))
+    (define (get-elevation b)
+      (if (= b bounces)
+	  elevation
+	  0))
+    (define (set-and-iter e v b)
+      (let ((td (travel-distance-bounce e v angle)))
+	(set! total-distance (+ total-distance (car td)))
+	(bounce-iter (cdr td) (- b 1))))
+    (define (bounce-iter v b)
+      (if (< b 0)
+	  total-distance
+	  (set-and-iter (get-elevation b) v b)))
+    (bounce-iter velocity bounces)))
 
 ;;; hrs are about %4 to %7 longer in Denver than Boston
 
@@ -316,7 +340,7 @@
   (load "test_basebot.scm"))
 
 
-(run-tests "l")
+(run-tests "w")
 
 
 
