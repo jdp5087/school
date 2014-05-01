@@ -1,6 +1,6 @@
 ###2.21###
 PROMPT:
------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------
 Exercise 2.21.  The procedure square-list takes a list of numbers as argument and returns a list of the squares of those numbers.
 
 (square-list (list 1 2 3 4))
@@ -14,14 +14,19 @@ Here are two different definitions of square-list. Complete both of them by fill
       (cons <??> <??>)))
 (define (square-list items)
   (map <??> <??>))
------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------
 
 (define (square-list items)
   (if (null? items)
-      nil
+      (list)
       (cons (square (car items))
 	    (square-list (cdr items)))))
 
 (square-list (list 1 2 3 4))
-		    
+;Value 13: (1 4 9 16)
 
+(define (mapped-square-list items)
+  (map square items))
+
+(mapped-square-list (list 1 2 3 4))
+;Value 14: (1 4 9 16)
