@@ -23,6 +23,9 @@ Fill in the missing expressions in the following procedures for computing the ot
     (map <??> m)))
 -----------------------------------------------------------------------------------------------------------------
 
+(define basic-m (list (list 1 2) (list 1 2)))
+(define basic-n (list (list 1 2) (list 1 2)))
+
 (define m (list (list 1 2 3 4) (list 4 5 6 6) (list 6 7 8 9)))
 (define n (list (list 1 2 3) (list 4 5 6) (list 7 8 9) (list 10 11 12)))
 
@@ -32,7 +35,7 @@ Fill in the missing expressions in the following procedures for computing the ot
 (define (matrix-*-vector m v)
   (map (lambda (seq) (dot-product v seq)) m))
 
-(matrix-*-vector m (list 1 2 3 4)
+(matrix-*-vector m (list 1 2 3 4))
 
 (define (transpose m)
   (accumulate-n cons (list) m))
@@ -48,3 +51,7 @@ Fill in the missing expressions in the following procedures for computing the ot
 	 m)))
 
 (matrix-*-matrix m n)
+;Value 14: ((70 80 90) (126 147 168) (180 210 240))
+
+(matrix-*-matrix basic-m basic-n)
+;Value 15: ((3 6) (3 6))

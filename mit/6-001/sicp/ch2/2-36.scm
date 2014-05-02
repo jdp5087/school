@@ -20,3 +20,4 @@ Exercise 2.36.  The procedure accumulate-n is similar to accumulate except that 
 
 (accumulate-n + 0 s)
 ;Value 13: (22 26 30)
+
