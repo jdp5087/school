@@ -66,8 +66,5 @@ The only way to actually use the resulting list would be to iterate it in revers
 (weird-list-access (weird-square-list (list 1 2 3 4)) 1)
 ;Value: 9
 
-So essentially, all Louis has done is create another reversed list, but in addition
-has made it even harder to work with.
-      
-      
-												
+;;;So essentially, all Louis has done is create another reversed list, but in addition
+;;;has made it even harder to work with.

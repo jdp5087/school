@@ -88,3 +88,4 @@ together with all subsets of the sequence without the first value with the first
 This recursive definition allows us to use map to apppend the first value to each sequence in "rest" and then append
 this modified rest with plain old rest. Very neat.
 
+

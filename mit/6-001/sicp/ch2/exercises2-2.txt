@@ -135,3 +135,636 @@ Use this notation to write a procedure same-parity that takes one or more intege
 
 (same-parity 1 2 3 4 5 6 7)
 ;Value 24: (1 3 5 7)
+
+###2.21###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.21.  The procedure square-list takes a list of numbers as argument and returns a list of the squares of those numbers.
+
+(square-list (list 1 2 3 4))
+(1 4 9 16)
+
+Here are two different definitions of square-list. Complete both of them by filling in the missing expressions:
+
+(define (square-list items)
+  (if (null? items)
+      nil
+      (cons <??> <??>)))
+(define (square-list items)
+  (map <??> <??>))
+------------------------------------------------------------
+
+(define (square-list items)
+  (if (null? items)
+      (list)
+      (cons (square (car items))
+	    (square-list (cdr items)))))
+
+(square-list (list 1 2 3 4))
+;Value 13: (1 4 9 16)
+
+(define (mapped-square-list items)
+  (map square items))
+
+(mapped-square-list (list 1 2 3 4))
+;Value 14: (1 4 9 16)
+
+###2.22###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.22.  Louis Reasoner tries to rewrite the first square-list procedure of exercise 2.21 so that it evolves an iterative process:
+
+(define (square-list items)
+  (define (iter things answer)
+    (if (null? things)
+        answer
+        (iter (cdr things) 
+              (cons (square (car things))
+                    answer))))
+  (iter items nil))
+
+Unfortunately, defining square-list this way produces the answer list in the reverse order of the one desired. Why?
+
+Louis then tries to fix his bug by interchanging the arguments to cons:
+
+(define (square-list items)
+  (define (iter things answer)
+    (if (null? things)
+        answer
+        (iter (cdr things)
+              (cons answer
+                    (square (car things))))))
+  (iter items nil))
+
+This doesn't work either. Explain.
+------------------------------------------------------------
+
+For the first procedure, the first call to iter will evaluate the alternative part of the if statement.
+This statement starts at the innermost part of a list, with nil being assigned to the second part of cons.
+Every call after the first will build the list out as if it were inserting a value at the beginning of the list,
+hence the reverse order. The last call to iter will result in the consequent being evaluated, and then
+the list is just returned in reverse order.
+
+This bug is even more ugly. The first call to iter will again result in evaluation of the alternative.
+This time, the calls to cons will start with (cons null first-value-squared). The second call (assuming there
+are more than two values will be (let brackets represent a pair):
+
+(cons [null, first-value-squared] second-value-squared)
+
+The third call will be:
+
+(cons [[null, first-value-squared], second-value-squared] third-value-squared)
+
+The only way to actually use the resulting list would be to iterate it in reverse:
+
+(define (weird-list-access items n)
+  (if (= n 0)
+      (cdr items)
+      (weird-list-access (car items) (- n 1))))
+
+
+(define (weird-square-list items)
+  (define (iter things answer)
+    (if (null? things)
+        answer
+        (iter (cdr things)
+              (cons answer
+                    (square (car things))))))
+  (iter items (list)))
+
+(weird-list-access (weird-square-list (list 1 2 3 4)) 3)
+;Value: 1
+(weird-list-access (weird-square-list (list 1 2 3 4)) 1)
+;Value: 9
+
+;;;So essentially, all Louis has done is create another reversed list, but in addition
+;;;has made it even harder to work with.
+
+###2.23###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.23.  The procedure for-each is similar to map. It takes as arguments a procedure and a list of elements. However, rather than forming a list of the results, for-each just applies the procedure to each of the elements in turn, from left to right. The values returned by applying the procedure to the elements are not used at all -- for-each is used with procedures that perform an action, such as printing. For example,
+
+(for-each (lambda (x) (newline) (display x))
+          (list 57 321 88))
+57
+321
+88
+
+The value returned by the call to for-each (not illustrated above) can be something arbitrary, such as true. Give an implementation of for-each.
+------------------------------------------------------------
+
+(define (for-each proc items)
+  (define (apply-and-iter l)
+    (proc (car l))
+    (iter (cdr l)))
+  (define (iter l)
+    (if (null? l)
+	true
+	(apply-and-iter l)))
+  (iter items))
+
+(for-each (lambda (x) (newline) (display x))
+	  (list 57 321 88))
+	    
+###2.24###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.24.  Suppose we evaluate the expression (list 1 (list 2 (list 3 4))). Give the result printed by the interpreter, the corresponding box-and-pointer structure, and the interpretation of this as a tree (as in figure 2.6).
+-----------------------------------------------------------------------------------------------------------------
+
+(car (list 1 (list 2 (list 3 4))))
+
+(cdr (list 1 (list 2 (list 3 4))))
+
+
+;;; I drew all of the structures on paper.
+
+###2.25###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.25.  Give combinations of cars and cdrs that will pick 7 from each of the following lists:
+
+(1 3 (5 7) 9)
+
+((7))
+
+(1 (2 (3 (4 (5 (6 7))))))
+-----------------------------------------------------------------------------------------------------------------
+
+(cdr (car (cdr (cdr (list 1 3 (list 5 7) 9)))))
+;Value: 7
+
+(car (car (list (list 7))))
+;Value: 7
+
+(car (cdr (car (cdr (car (cdr (car (cdr (car (cdr (car (cdr (list 1 (list 2 (list 3 (list 4 (list 5 (list 6 7))))))))))))))))))
+;Value: 7
+
+###2.26###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.26.  Suppose we define x and y to be two lists:
+
+(define x (list 1 2 3))
+(define y (list 4 5 6))
+
+What result is printed by the interpreter in response to evaluating each of the following expressions:
+
+(append x y)
+
+(cons x y)
+
+(list x y)
+-----------------------------------------------------------------------------------------------------------------
+
+(define x (list 1 2 3))
+(define y (list 4 5 6))
+
+I'll try to reason out the result first, and then check my answers.
+
+(append x y) should return a list (1 2 3 4 5 6), which will be accomplished by the procedure:
+
+(define (append l1 l2)
+  (if (null? (cdr l1))
+      (cons (car l1) l2)
+      (cons (car l1)
+	    (append (cdr l1) l2))))
+
+(append x y)
+;Value 20: (1 2 3 4 5 6)
+
+(cons x y) should return ((1 2 3) 4 5 6), because (1 2 3) will just become the first item of the list.
+
+(cons x y)
+;Value 21: ((1 2 3) 4 5 6)
+
+(list x y) should return ((1 2 3) (4 5 6)), which is like calling:
+
+(cons x (cons y (list)))
+
+(list x y)
+;Value 22: ((1 2 3) (4 5 6))
+
+###2.27###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.27.  Modify your reverse procedure of exercise 2.18 to produce a deep-reverse procedure that takes a list as argument and returns as its value the list with its elements reversed and with all sublists deep-reversed as well. For example,
+
+(define x (list (list 1 2) (list 3 4)))
+
+x
+((1 2) (3 4))
+
+(reverse x)
+((3 4) (1 2))
+
+(deep-reverse x)
+((4 3) (2 1))
+-----------------------------------------------------------------------------------------------------------------
+
+(define (reverse l)
+  (define (reverse-iter remaining done)
+    (if (null? (cdr remaining))
+	(cons (car remaining) done)
+	(reverse-iter (cdr remaining) (cons (car remaining) done))))
+  (reverse-iter l (list)))
+
+(define (deep-reverse l)
+  (define (deep-reverse-iter remaining done)
+    (cond ((null? remaining) done)
+	  ((not (pair? remaining)) remaining)
+	  (else (deep-reverse-iter (cdr remaining) (cons (deep-reverse (car remaining)) done)))))
+  (deep-reverse-iter l (list)))
+
+(define x (list (list 1 2 (list 3 4)) (list 5 6)))
+
+(deep-reverse x)
+;Value 29: ((6 5) ((4 3) 2 1))
+
+###2.28###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.28.  Write a procedure fringe that takes as argument a tree (represented as a list) and returns a list whose elements are all the leaves of the tree arranged in left-to-right order. For example,
+
+(define x (list (list 1 2) (list 3 4)))
+
+(fringe x)
+(1 2 3 4)
+
+(fringe (list x x))
+(1 2 3 4 1 2 3 4)
+-----------------------------------------------------------------------------------------------------------------
+
+(define (fringe l)
+  (cond ((null? l) l)
+	((not (pair? l)) (list l))
+	(else (append (fringe (car l))
+		      (fringe (cdr l))))))
+
+(define x (list (list 1 2) (list 3 4)))
+
+(fringe x)
+;Value 35: (1 2 3 4)
+
+(fringe (list x x))
+
+###2.29###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.29.  A binary mobile consists of two branches, a left branch and a right branch. Each branch is a rod of a certain length, from which hangs either a weight or another binary mobile. We can represent a binary mobile using compound data by constructing it from two branches (for example, using list):
+
+(define (make-mobile left right)
+  (list left right))
+
+A branch is constructed from a length (which must be a number) together with a structure, which may be either a number (representing a simple weight) or another mobile:
+
+(define (make-branch length structure)
+  (list length structure))
+
+a.  Write the corresponding selectors left-branch and right-branch, which return the branches of a mobile, and branch-length and branch-structure, which return the components of a branch.
+
+b.  Using your selectors, define a procedure total-weight that returns the total weight of a mobile.
+
+c.  A mobile is said to be balanced if the torque applied by its top-left branch is equal to that applied by its top-right branch (that is, if the length of the left rod multiplied by the weight hanging from that rod is equal to the corresponding product for the right side) and if each of the submobiles hanging off its branches is balanced. Design a predicate that tests whether a binary mobile is balanced.
+
+d.  Suppose we change the representation of mobiles so that the constructors are
+
+(define (make-mobile left right)
+  (cons left right))
+(define (make-branch length structure)
+  (cons length structure))
+
+How much do you need to change your programs to convert to the new representation?
+-----------------------------------------------------------------------------------------------------------------
+
+(define (make-mobile left right)
+  (list left right))
+(define (make-branch length structure)
+  (list length structure))
+
+(define (left-branch mobile)
+  (car mobile))
+(define (right-branch mobile)
+  (car (cdr mobile)))
+(define (branch-length branch)
+  (car branch))
+(define (branch-structure branch)
+  (car (cdr branch)))
+
+(define (total-weight mobile)
+  (if (number? mobile)
+      mobile
+      (+ (total-weight (branch-structure (left-branch mobile)))
+	 (total-weight (branch-structure (right-branch mobile))))))
+
+(define (balanced? mobile)
+  (define (torque branch)
+    (* (branch-length branch) (total-weight (branch-structure branch))))
+  (define (equal-torque mobile)
+    (= (torque (left-branch mobile))
+       (torque (right-branch mobile))))
+  (define (left-structure mobile)
+    (branch-structure (left-branch mobile)))
+  (define (right-structure mobile)
+    (branch-structure (right-branch mobile)))
+  (if (number? mobile)
+      true
+      (and (equal-torque mobile)
+	   (balanced? (left-structure mobile))
+	   (balanced? (right-structure mobile)))))
+
+		      
+
+(let ((simple-m (make-mobile (make-branch 5 5) (make-branch 6 6)))
+      (m (make-mobile (make-branch 10 (make-mobile (make-branch 10 (make-mobile (make-branch 10 5) (make-branch 10 5))) (make-branch 10 10)))
+		      (make-branch 10 20))))
+  (balanced? m))
+
+
+(define (make-mobile left right)
+  (cons left right))
+(define (make-branch length structure)
+  (cons length structure))
+
+
+(define (left-branch mobile)
+  (car mobile))
+(define (right-branch mobile)
+  (cdr mobile))
+(define (branch-length branch)
+  (car branch))
+(define (branch-structure branch)
+  (cdr branch))
+
+;;;as you can see, the only things that needed to be changed for the new data structures were to right-branch and branch-structure selectors.
+
+###2.30###
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.30.  Define a procedure square-tree analogous to the square-list procedure of exercise 2.21. That is, square-list should behave as follows:
+
+(square-tree
+ (list 1
+       (list 2 (list 3 4) 5)
+       (list 6 7)))
+(1 (4 (9 16) 25) (36 49))
+
+Define square-tree both directly (i.e., without using any higher-order procedures) and also by using map and recursion.
+-----------------------------------------------------------------------------------------------------------------
+
+(define (square-tree tree)
+  (cond ((null? tree) (list))
+	((not (pair? tree)) (square tree))
+	(else (cons (square-tree (car tree))
+		    (square-tree (cdr tree))))))
+
+(define x  (list 1
+		 (list 2 (list 3 4) 5)
+		 (list 6 7)))
+
+(square-tree x)
+;Value 49: (1 (4 (9 16) 25) (36 49))
+
+(define (square-tree tree)
+  (map (lambda (sub-tree)
+	 (if (pair? sub-tree)
+	     (square-tree sub-tree)
+	     (square  sub-tree)))
+       tree))
+
+(square-tree x)
+;Value 55: (1 (4 (9 16) 25) (36 49))
+
+###2.31###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.31.  Abstract your answer to exercise 2.30 to produce a procedure tree-map with the property that square-tree could be defined as
+
+(define (square-tree tree) (tree-map square tree))
+-----------------------------------------------------------------------------------------------------------------
+
+(define (tree-map proc tree)
+  (map (lambda (sub-tree)
+	 (if (pair? sub-tree)
+	     (tree-map proc sub-tree)
+	     (proc sub-tree)))
+       tree))
+
+(define x  (list 1
+		 (list 2 (list 3 4) 5)
+		 (list 6 7)))
+
+(define (square-tree tree) (tree-map square tree))
+
+(square-tree x)
+
+###2.32###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.32.  We can represent a set as a list of distinct elements, and we can represent the set of all subsets of the set as a list of lists. For example, if the set is (1 2 3), then the set of all subsets is (() (3) (2) (2 3) (1) (1 3) (1 2) (1 2 3)). Complete the following definition of a procedure that generates the set of subsets of a set and give a clear explanation of why it works:
+
+(define (subsets s)
+  (if (null? s)
+      (list nil)
+      (let ((rest (subsets (cdr s))))
+        (append rest (map <??> rest)))))
+-----------------------------------------------------------------------------------------------------------------
+
+;;; nil is not defined in my implementation of scheme so I use (list) instead
+(define (subsets s)
+  (if (null? s)
+      (list (list))
+      (let ((rest (subsets (cdr s))))
+        (append rest (map (lambda (subset) (append (list (car s)) subset))
+			   rest)))))
+
+(subsets (list 1 2 3))
+;Value 12: (() (3) (2) (2 3) (1) (1 3) (1 2) (1 2 3))
+
+(subsets (list 2 3 4 5))
+
+This process works by taking advantage of the fact that a subset can be recursively constructed by simply adding appending each value
+to a growing list of subsets. The best way to explain it is to illustrate the process in action with a very simple example.
+
+(subsets (list 1 2))
+
+(if (null? (1 2)))
+
+(let (rest (subsets (2)))
+  (append rest (map (lambda (subsets) (append (list 1) subset))
+			   rest)))))
+
+(let (rest (if (null? (2)))
+  (append rest (map (lambda (subsets) (append (1) subset))
+			   rest)))))
+
+(let (rest
+      (let ((rest (subsets nil)))
+	(append rest (map (lambda (subsets) (append (list 2) subset))))))
+      (append rest (map (lambda (subsets) (append (list (1) subset))
+				rest)))))
+
+(let (rest
+      (let ((rest (if (null? nil))))
+	(append rest (map (lambda (subsets) (append (list 2) subset)))
+			  ())))
+      (append rest (map (lambda (subsets) (append (list (1) subset))
+				rest)))))
+
+(let (rest
+      (let ((rest ()))
+	(append () (map (append (2) (())))))
+      (append rest (map (lambda (subsets) (append (list (1) subset))
+				rest)))))
+
+(let (rest
+      (let ((rest ()))
+	(append () (2)))
+      (append rest (map (lambda (subsets) (append (list (1) subset))
+				rest)))))
+
+(let (rest (append (()) ((2))))
+      (append rest (map (lambda (subsets) (append (list (1) subset))
+				rest)))))
+
+(let ((rest  (() (2))))
+      (append rest (map (lambda (subsets) (append (list (1) subset))
+				rest)))))
+
+(let ((rest  (() (2))))
+      (append (() (2)) (map (lambda (subsets) (append (list (1) subset))
+				(() (2)))))))
+
+(let ((rest  (() (2))))
+      (append (() (2)) (map (lambda ((() (2))) (append (list (1) subset))))
+
+(let ((rest  (() (2))))
+      (append (() (2)) ((1) (1 2))
+
+(() (2) (1) (1 2))
+			
+So we see that the subset of a sequence can be defined as all subsets of the sequence without the first value,
+together with all subsets of the sequence without the first value with the first value appended to each subset.
+This recursive definition allows us to use map to apppend the first value to each sequence in "rest" and then append
+this modified rest with plain old rest. Very neat.
+
+###2.33###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.33.  Fill in the missing expressions to complete the following definitions of some basic list-manipulation operations as accumulations:
+
+(define (map p sequence)
+  (accumulate (lambda (x y) <??>) nil sequence))
+(define (append seq1 seq2)
+  (accumulate cons <??> <??>))
+(define (length sequence)
+  (accumulate <??> 0 sequence))
+-----------------------------------------------------------------------------------------------------------------
+
+(define (accumulate op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence)
+	  (accumulate op initial (cdr sequence)))))
+
+(define (append seq1 seq2)
+  (accumulate cons seq2 seq1))
+
+(define (map p sequence)
+  (accumulate (lambda (x y) (cons (p x) y)) (list) sequence))
+
+(define (length sequence)
+  (accumulate (lambda (x y) (+ 1 y)) 0 sequence))
+
+(map square (list 1 2 3 4))
+;Value 12: (1 4 9 16)
+
+(append (list 1 2 3) (list 4 5 6))
+;Value 13: (1 2 3 4 5 6)
+
+(length (list 1 2 3 4 5))
+;Value: 5
+
+###2.34###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.34.  Evaluating a polynomial in x at a given value of x can be formulated as an accumulation. We evaluate the polynomial
+
+
+using a well-known algorithm called Horner's rule, which structures the computation as
+
+
+In other words, we start with an, multiply by x, add an-1, multiply by x, and so on, until we reach a0.16 Fill in the following template to produce a procedure that evaluates a polynomial using Horner's rule. Assume that the coefficients of the polynomial are arranged in a sequence, from a0 through an.
+
+(define (horner-eval x coefficient-sequence)
+  (accumulate (lambda (this-coeff higher-terms) <??>)
+              0
+              coefficient-sequence))
+
+For example, to compute 1 + 3x + 5x3 + x5 at x = 2 you would evaluate
+
+(horner-eval 2 (list 1 3 0 5 0 1))
+-----------------------------------------------------------------------------------------------------------------
+
+(define (horner-eval x coefficient-sequence)
+  (accumulate (lambda (this-coeff higher-terms) (+ this-coeff (* x higher-terms)))
+	      0
+	      coefficient-sequence))
+
+(horner-eval 2 (list 1 3 0 5 0 1))
+;Value: 79
+
+###2.35###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.35.  Redefine count-leaves from section 2.2.2 as an accumulation:
+
+(define (count-leaves t)
+  (accumulate <??> <??> (map <??> <??>)))
+-----------------------------------------------------------------------------------------------------------------
+
+(define (accumulate op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence)
+	  (accumulate op initial (cdr sequence)))))
+
+
+(define (count-leaves t)
+  (accumulate (lambda (x y) (+ x y))
+	      0
+	      (map (lambda (sub-tree)
+		     (if (not (pair? sub-tree))
+			 1
+			 (count-leaves sub-tree)))
+		   t)))
+
+(count-leaves (list (list 1 (list 2 3)) (list (list 8 9 20) 5 6)))
+;Value: 8
+
+###2.36###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.36.  The procedure accumulate-n is similar to accumulate except that it takes as its third argument a sequence of sequences, which are all assumed to have the same number of elements. It applies the designated accumulation procedure to combine all the first elements of the sequences, all the second elements of the sequences, and so on, and returns a sequence of the results. For instance, if s is a sequence containing four sequences, ((1 2 3) (4 5 6) (7 8 9) (10 11 12)), then the value of (accumulate-n + 0 s) should be the sequence (22 26 30). Fill in the missing expressions in the following definition of accumulate-n:
+
+(define (accumulate-n op init seqs)
+  (if (null? (car seqs))
+      nil
+      (cons (accumulate op init <??>)
+            (accumulate-n op init <??>))))
+-----------------------------------------------------------------------------------------------------------------
+
+(define (accumulate-n op init seqs)
+  (if (null? (car seqs))
+      (list)
+      (cons (accumulate op init (map (lambda (seq) (car seq)) seqs))
+            (accumulate-n op init (map (lambda (seq) (cdr seq)) seqs)))))
+
+(define s (list (list 1 2 3) (list 4 5 6) (list 7 8 9) (list 10 11 12)))
+
+(accumulate-n + 0 s)
+;Value 13: (22 26 30)
+
+
+
+

@@ -24,3 +24,4 @@ Exercise 2.28.  Write a procedure fringe that takes as argument a tree (represen
 ;Value 35: (1 2 3 4)
 
 (fringe (list x x))
+
