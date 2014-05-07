@@ -885,3 +885,460 @@ while addition and subtraction do not.
 ;Value: 2
 (fold-left - 0 (list 1 2 3))
 ;Value: -6
+
+###2.39###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.39.   Complete the following definitions of reverse (exercise 2.18) in terms of fold-right and fold-left from exercise 2.38:
+
+(define (reverse sequence)
+  (fold-right (lambda (x y) <??>) nil sequence))
+(define (reverse sequence)
+  (fold-left (lambda (x y) <??>) nil sequence))
+------------------------------------------------------------
+
+(define (accumulate op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence)
+	  (accumulate op initial (cdr sequence)))))
+
+(define (reverse sequence)
+  (fold-right (lambda (x y) (append y (list x))) () sequence))
+
+(reverse (list 1 2 3))
+
+
+(define (reverse sequence)
+  (fold-left (lambda (x y) (append (list y) x)) () sequence))
+
+(reverse (list 1 2 3))
+
+;;; I confess that I had to check online for the answer to the fold-right case, which gave me enough to figure out
+;;; the fold-left case pretty easily.
+
+###2.40###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.40.  Define a procedure unique-pairs that, given an integer n, generates the sequence of pairs (i,j) with 1< j< i< n. Use unique-pairs to simplify the definition of prime-sum-pairs given above.
+------------------------------------------------------------
+
+(define (enumerate-sequence low high)
+  (if (> low high)
+      ()
+      (cons low (enumerate-sequence (+ 1 low) high))))
+
+(enumerate-sequence 1 20)
+
+(define (flatmap proc sequence)
+  (accumulate append () (map proc sequence)))
+
+(define (unique-pairs n)
+  (flatmap (lambda (x)
+	     (map (lambda (y) (cons y x))
+		  (enumerate-sequence 1 (- x 1))))
+	     (enumerate-sequence 1 n)))
+
+(unique-pairs 5)
+;Value 27: ((1 . 2) (1 . 3) (2 . 3) (1 . 4) (2 . 4) (3 . 4) (1 . 5) (2 . 5) (3 . 5) (4 . 5))
+
+###2.41###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.41.  Write a procedure to find all ordered triples of distinct positive integers i, j, and k less than or equal to a given integer n that sum to a given integer s.
+------------------------------------------------------------
+
+(define (unique-triplets n)
+  (flatmap (lambda (x)
+	     (flatmap (lambda (y)
+		    (map (lambda (z)
+			   (list z y x))
+			 (enumerate-sequence 1 (- y 1))))
+		  (enumerate-sequence 1 (- x 1))))
+	   (enumerate-sequence 1 n)))
+
+(unique-triplets 5)
+;Value 32: ((1 2 3) (1 2 4) (1 3 4) (2 3 4) (1 2 5) (1 3 5) (2 3 5) (1 4 5) (2 4 5) (3 4 5))
+
+
+(define (triplets-sum n s)
+  (define (sum-to-s? triplet)
+    (= s (accumulate + 0 triplet)))
+  (filter sum-to-s? (unique-triplets n)))
+
+(triplets-sum 5 9)
+
+PROMPT:
+------------------------------------------------------------
+Exercise 2.42.  
+
+The ``eight-queens puzzle'' asks how to place eight queens on a chessboard so that no queen is in check from any other (i.e., no two queens are in the same row, column, or diagonal). One possible solution is shown in figure 2.8. One way to solve the puzzle is to work across the board, placing a queen in each column. Once we have placed k - 1 queens, we must place the kth queen in a position where it does not check any of the queens already on the board. We can formulate this approach recursively: Assume that we have already generated the sequence of all possible ways to place k - 1 queens in the first k - 1 columns of the board. For each of these ways, generate an extended set of positions by placing a queen in each row of the kth column. Now filter these, keeping only the positions for which the queen in the kth column is safe with respect to the other queens. This produces the sequence of all ways to place k queens in the first k columns. By continuing this process, we will produce not only one solution, but all solutions to the puzzle.
+
+We implement this solution as a procedure queens, which returns a sequence of all solutions to the problem of placing n queens on an n× n chessboard. Queens has an internal procedure queen-cols that returns the sequence of all ways to place queens in the first k columns of the board.
+
+(define (queens board-size)
+  (define (queen-cols k)  
+    (if (= k 0)
+        (list empty-board)
+        (filter
+         (lambda (positions) (safe? k positions))
+         (flatmap
+          (lambda (rest-of-queens)
+            (map (lambda (new-row)
+                   (adjoin-position new-row k rest-of-queens))
+                 (enumerate-interval 1 board-size)))
+          (queen-cols (- k 1))))))
+  (queen-cols board-size))
+
+In this procedure rest-of-queens is a way to place k - 1 queens in the first k - 1 columns, and new-row is a proposed row in which to place the queen for the kth column. Complete the program by implementing the representation for sets of board positions, including the procedure adjoin-position, which adjoins a new row-column position to a set of positions, and empty-board, which represents an empty set of positions. You must also write the procedure safe?, which determines for a set of positions, whether the queen in the kth column is safe with respect to the others. (Note that we need only check whether the new queen is safe -- the other queens are already guaranteed safe with respect to each other.)
+------------------------------------------------------------
+(define (flatmap proc sequence)
+  (accumulate append () (map proc sequence)))
+
+(define (accumulate op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence)
+	  (accumulate op initial (cdr sequence)))))
+
+(define (enumerate-interval low high)
+  (if (> low high)
+      ()
+      (cons low (enumerate-interval (+ low 1) high))))
+
+(define (queens board-size)
+
+  (define (get-n n sequence)
+    (if (= 1 n)
+	(car sequence)
+	(get-n (- n 1) (cdr sequence))))
+  
+  (define (remove-value val sequence)
+    (accumulate (lambda (x y)
+		  (if (equal? x val)
+		      y
+		      (cons x y)))
+		()
+		sequence))
+  
+  (define empty-board ())
+
+  (define (adjoin-position row col positions)
+    (list (append positions (list (list row col)))))
+
+  (define (safe? k solution)
+    (define (abs-dif taken new)
+	     (abs (- taken new)))
+    (define (safe-iter val sol)
+      (if (null? sol)
+	  true
+	  (let ((taken-row (get-n 1 (car sol)))
+		(taken-col (get-n 2 (car sol)))
+		(new-row (get-n 1 val))
+		(new-col (get-n 2 val)))
+	    (if (or (= taken-row new-row)
+		    (= (abs-dif taken-row new-row) (abs-dif taken-col new-col)))
+		false
+		(safe-iter val (cdr sol))))))
+    (let ((new (get-n k solution)))
+      (let ((rest (remove-value new solution)))
+	(safe-iter new rest))))
+
+  (define (test-pred k positions)
+    (newline)
+    (display positions)
+    true)
+
+  (define (queen-cols k)
+    (if (= k 0)
+	(list empty-board)
+	(filter (lambda (positions) (safe? k positions))
+	 (flatmap
+	  (lambda (rest-of-queens)
+	    (flatmap (lambda (new-row)
+		   (adjoin-position new-row k rest-of-queens))
+		 (enumerate-interval 1 board-size)))
+	  (queen-cols (- k 1))))))
+
+  (queen-cols board-size))
+
+;;; The output to queens 8 is so long I'll just show the output for queens 4.
+;;; One very important note here is that a strong understanding of the algorithm is required before
+;;; diving in to write the code. Working with higher order procedures creates a lot of moving parts
+;;; that become extremely complicated to think through procedurally. I made a logic error in my implementation
+;;; of adjoin-position and as a result spent a whole day trying to debug my mistake. I had to step back
+;;; and think from start to finish through the algorithm before I could develop a satisfactory implementation.
+;;; if it feels like the design is overly complex, its probably because an error was made somewhere.
+
+(queens 4)
+;Value 39: (((2 1) (4 2) (1 3) (3 4)) ((3 1) (1 2) (4 3) (2 4)))
+
+###2.43###
+------------------------------------------------------------
+Exercise 2.43.  Louis Reasoner is having a terrible time doing exercise 2.42. His queens procedure seems to work, but it runs extremely slowly. (Louis never does manage to wait long enough for it to solve even the 6× 6 case.) When Louis asks Eva Lu Ator for help, she points out that he has interchanged the order of the nested mappings in the flatmap, writing it as
+
+(flatmap
+ (lambda (new-row)
+   (map (lambda (rest-of-queens)
+          (adjoin-position new-row k rest-of-queens))
+        (queen-cols (- k 1))))
+ (enumerate-interval 1 board-size))
+
+Explain why this interchange makes the program run slowly. Estimate how long it will take Louis's program to solve the eight-queens puzzle, assuming that the program in exercise 2.42 solves the puzzle in time T.
+------------------------------------------------------------
+
+The problem here is that there is a long recursive call placed in the inner loop. Each call other than the top level
+(queen calls 8) will result in 8 calls to every step below it. This means that (queens 8) will result in 8 calls to
+(queens 7) and 8 calls to (queens 6) for each of those 8 calls. This goes on until (queens 1) and ultimately (queens 0)
+will be called 8 times for each call to (queens 1). Therefore, the running time of this algorithm, if the other version
+ran in time T. will run in T^8 because the complexity grows by T for each recursive call to the step below.
+
+###2.44###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.44.  Define the procedure up-split used by corner-split. It is similar to right-split, except that it switches the roles of below and beside.
+------------------------------------------------------------
+
+(define (up-split painter n)
+  (if (= n 0)
+      painter
+      (let ((smaller (up-split painter (- n 1))))
+	(below painter (beside s s)))))
+
+
+###2.45###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.45.  Right-split and up-split can be expressed as instances of a general splitting operation. Define a procedure split with the property that evaluating
+
+(define right-split (split beside below))
+(define up-split (split below beside))
+
+produces procedures right-split and up-split with the same behaviors as the ones already defined.
+------------------------------------------------------------
+
+(define (split p1 p2)
+  (lambda (painter n)
+    (if (= n 0)
+	painter
+	(let ((smaller ((split p1 p2) painter (- n 1))))
+	  (p1 painter (p2 smaller))))))
+
+
+###2.46###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.46.  A two-dimensional vector v running from the origin to a point can be represented as a pair consisting of an x-coordinate and a y-coordinate. Implement a data abstraction for vectors by giving a constructor make-vect and corresponding selectors xcor-vect and ycor-vect. In terms of your selectors and constructor, implement procedures add-vect, sub-vect, and scale-vect that perform the operations vector addition, vector subtraction, and multiplying a vector by a scalar
+------------------------------------------------------------
+
+(define (make-vect x y)
+  (cons x y))
+(define (xcor-vect v)
+z  (car v))
+(define (ycor-vect v)
+  (cdr v))
+(define (add-vect v w)
+  (cons (+ (xcor-vect v) (xcor-vect w))
+	(+ (ycor-vect v) (ycor-vect w))))
+(define (sub-vect v w)
+  (cons (- (xcor-vect v) (xcor-vect w))
+	(- (ycor-vect v) (ycor-vect w))))
+(define (scale-vect v s)
+  (cons (* (xcor-vect v) s)
+	(* (ycor-vect v) s)))
+
+(let ((v1 (make-vect 1 1))
+      (v2 (make-vect 2 2)))
+  (display (add-vect v1 v2))
+  (display (sub-vect v2 v1))
+  (display (scale-vect v1 5)))
+
+;(3 . 3)(1 . 1)(5 . 5)
+;Unspecified return value
+
+###2.47###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.47.  Here are two possible constructors for frames:
+
+(define (make-frame origin edge1 edge2)
+  (list origin edge1 edge2))
+
+(define (make-frame origin edge1 edge2)
+  (cons origin (cons edge1 edge2)))
+
+For each constructor supply the appropriate selectors to produce an implementation for frames.
+------------------------------------------------------------
+
+(define (make-frame origin edge1 edge2)
+  (list origin edge1 edge2))
+
+(define (origin-frame frame)
+  (car frame))
+(define (edge1-frame frame)
+  (car (cdr frame)))
+(define (edge2-frame frame)
+  (car (cdr (cdr frame))))
+
+(let ((origin (make-vect 2 2))
+      (e1 (make-vect 0 1))
+      (e2 (make-vect -1 2)))
+  (let ((frame (make-frame origin e1 e2)))
+    (display (origin-frame frame))
+    (display (edge1-frame frame))
+    (display (edge2-frame frame))))
+
+;(2 . 2)(0 . 1)(-1 . 2)
+;Unspecified return value
+
+
+
+###2.48###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.48.  A directed line segment in the plane can be represented as a pair of vectors -- the vector running from the origin to the start-point of the segment, and the vector running from the origin to the end-point of the segment. Use your vector representation from exercise 2.46 to define a representation for segments with a constructor make-segment and selectors start-segment and end-segment.
+------------------------------------------------------------
+
+(define (make-segment start end)
+  (cons start end))
+(define (start-segment segment)
+  (car segment))
+(define (end-segment segment)
+  (cdr segment))
+
+(let ((start (make-vect 1 1))
+      (end (make-vect 2 2)))
+  (let ((seg (make-segment start end)))
+    (display (start-segment seg))
+    (display (end-segment seg))))
+
+###2.49###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.49.  Use segments->painter to define the following primitive painters:
+
+a.  The painter that draws the outline of the designated frame.
+
+b.  The painter that draws an ``X'' by connecting opposite corners of the frame.
+
+c.  The painter that draws a diamond shape by connecting the midpoints of the sides of the frame.
+
+d.  The wave painter.
+------------------------------------------------------------
+
+(define (frame-coord-map frame)
+  (lambda (v)
+    (add-vect
+     (origin-frame frame)
+     (add-vect (scale-vect (xcor-vect v)
+                           (edge1-frame frame))
+               (scale-vect (ycor-vect v)
+                           (edge2-frame frame))))))
+
+(define (segments->painter segment-list)
+  (lambda (frame)
+    (for-each
+     (lambda (segment)
+       (draw-line
+        ((frame-coord-map frame) (start-segment segment))
+        ((frame-coord-map frame) (end-segment segment))))
+     segment-list)))
+
+(define outline
+  (let ((bottom-left (make-vect 0 0))
+	(bottom-right (make-vect 1 0))
+	(top-left (make-vect 0 1))
+	(top-right (make-vect 1 1)))
+    (segments->painter
+     (list (make-segment bottom-left bottom-right)
+	   (make-segment bottom-right top-right)
+	   (make-segment bottom-left top-left)
+	   (make-segment top-left top-right)))))
+
+(define x-painter
+  (let ((bottom-left (make-vect 0 0))
+	(bottom-right (make-vect 1 0))
+	(top-left (make-vect 0 1))
+	(top-right (make-vect 1 1)))
+    (segments->painter
+     (list (make-segment bottom-left top-right)
+	   (make-segment bottom-right top-left)))))
+
+(define diamond-painter
+  (let ((bottom (make-vect 0.5 0))
+	(left (make-vect 0 0.5))
+	(right (make-vect 1 0.5))
+	(top (make-vect 0.5 1)))
+    (segments->painter
+     (list (make-segment bottom left)
+	   (make-segment bottom right)
+	   (make-segment left top)
+	   (make-segment right top)))))
+
+
+(define wave-painter
+  (let ((ll-bot-o (make-vect 0.25 0))
+	(ll-bot-i (make-vect 0.35 0))
+	(rl-bot-i (make-vect 0.55 0))
+	(rl-bot-o (make-vect 0.75 0))
+	(crotch (make-vect 0.5 0.25))
+	(l-armpit (make-vect 0.3 0.6))
+	(l-shoulder-b (make-vect 0.27 0.63))
+	(l-shoulder-t (make-vect 0.27 0.65))
+	(l-elbow-b (make-vect 0.2 0.5))
+	(l-elbow-t (make-vect 0.2 0.62))
+	(l-hand-b (make-vect 0 0.65))
+	(l-hand-t (make-vect 0 0.70))
+	(r-armpit (make-vect 0.6 0.6))
+	(r-shoulder (make-vect 0.7 0.65))
+	(r-hand-b (make-vect 1 0.23))
+	(r-hand-t (make-vect 1 0.33))
+	(l-neck (make-vect 0.40 0.65))
+	(r-neck (make-vect 0.60 0.65))
+	(l-head-middle (make-vect 0.3 0.80))
+	(r-head-middle (make-vect 0.63 0.80))
+	(l-head-top (make-vect 0.40 1))
+	(r-head-top (make-vect 0.60 1)))
+    (segments->painter
+     (list (make-segment ll-bot-o l-armpit)
+	   (make-segment ll-bot-i crotch)
+	   (make-segment rl-bot-i crotch)
+	   (make-segment rl-bot-o r-armpit)
+	   (make-segment l-armpit l-shoulder-b)
+	   (make-segment l-shoulder-b l-elbow-b)
+	   (make-segment l-elbow-b l-hand-b)
+	   (make-segment l-shoulder-t l-elbow-t)
+	   (make-segment l-elbow-t l-hand-t)
+	   (make-segment l-shoulder-t l-neck)
+	   (make-segment r-armpit r-hand-b)
+	   (make-segment r-shoulder r-hand-t)
+	   (make-segment r-shoulder r-neck)
+	   (make-segment l-neck l-head-middle)
+	   (make-segment r-neck r-head-middle)
+	   (make-segment l-head-middle l-head-top)
+	   (make-segment r-head-middle r-head-top)))))
+
+###2.50###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.50.  Define the transformation flip-horiz, which flips painters horizontally, and transformations that rotate painters counterclockwise by 180 degrees and 270 degrees.
+------------------------------------------------------------
+
+(define (flip-horiz painter)
+  (transform-painter painter
+		     (make-vect 1.0 0.0)
+		     (make-vect 0.0 0.0)
+		     (make-vect 1.0 1.0)))
+
+(define (rotate180 painter)
+  (transform-painter painter
+		     (make-vect 1.0 1.0)
+		     (make-vect 0.0 1.0)
+		     (make-vect 1.0 0.0)))
+
+(define (rotate270 painter)
+  (transform-painter painter
+		     (make-vect 0.0 1.0)
+		     (make-vect 0.0 0.0)
+		     (make-vect 1.0 1.0)))
+
