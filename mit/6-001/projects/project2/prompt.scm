@@ -63,6 +63,21 @@
     (("d" "c") (5 0))
     (("d" "d") (1 1))))
 
+(define (extract-entry play associations)
+  (define (first-play play)
+    (cdr play))
+  (define (second-play play)
+    (cadr play))
+  (define (terms-match? play-outcome)
+    (and (string=? (first-play play) (first-play play-outcome))
+	 (string=? (second-play play) (second-play play-outcome))))
+  (define (iter play-outcomes)
+    (let ((play-outcome-list (car (car play-outcomes))))
+      (if (terms-match? play-outcome-list)
+	  play-outcome
+	  (iter (cdr play-outcomes)))))
+  (iter associations))
+
 (define (get-point-list game)
   (cadr (extract-entry game *game-association-list*)))
 
