@@ -1,0 +1,74 @@
+###PROBLEM 1###
+
+(define (extract-entry play associations)
+  (define (get-play association)
+    (car association))
+  (define (get-value association)
+    (cadr association))
+  (define (first-association a)
+    (car a))
+  (define (rest-of-associations a)
+    (cdr a))
+  (define (first-play play)
+    (car play))
+  (define (second-play play)
+    (cadr play))
+  (define (equal-plays? possibility)
+    (and (string=? (first-play play) (first-play possibility))
+	 (string=? (second-play play) (second-play possibility))))
+  (define (iter remaining)
+    (if (equal-plays? (get-play (first-association remaining)))
+	(first-association remaining)
+	(iter (rest-of-associations remaining))))
+  (iter associations))
+
+###PROBLEM 2###
+
+Matrix of average scores between different strategies:
+
+see ./scores_matrix.ods in the same directory.
+
+Patsy fares very poorly against nasty and spastic
+
+nasty fares very well against patsy, beats spastic, but ties at 1 for the others.
+
+Spastic loses badly to nasty, beats patsy soundly, results against most vary enough that this strategy isn't reliable.
+
+Egalitarian does well against patsy and eye-for-eye but loses to spastic and nasty.
+
+Eye-for-eye manages barely lose or tie in every scenario, but actually has 4 matchings that average above 2, which is far better than the other
+strategies.
+
+###PROBLEM 3###
+
+(define (EGALITARIAN  my-history other-history)
+  (define (count-instances-of test hist)
+    (cond ((empty-history? hist) 0)
+	  ((string=? (most-recent-play hist) test)
+	   (+ (count-instances-of test (rest-of-plays hist)) 1))
+	  (else (count-instances-of test (rest-of-plays hist)))))
+  (let ((ds (count-instances-of "d" other-history))
+	(cs (count-instances-of "c" other-history)))
+    (if (> ds cs) "d" "c")))
+
+The run-time for this algorithm can be described as follows.
+
+the let statement makes two calls to count-instances of, and this is where the bulk of the compuation takes place.
+
+the running time of count-instances-of varies with the size of hist, which in this case is the same for both calls.
+
+each call to count-instance-of does 2 comparisons, and in the most common case also an addition, however since this does not vary with input size
+we can ignore it and treat this as a constant.
+
+Therefore, we have that the running time of count-instances-of is n, and that n is called twice, so we have
+
+O(2n).
+
+The algorithm by Alyssa P. Hacker is slightly faster, becuase it only does 1 iteration of the history for each call to EGALITARIAN.
+
+The only reason I included the 2n in the order-of-growth notation for the first version of EGALITARIAN is because this algorithm is O(n).
+So we see that the second version is slightly faster, but in order-of-growth notation constants are usually ignored, so the difference in
+speed probably isn't significant.
+
+
+

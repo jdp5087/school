@@ -1,3 +1,5 @@
+;;; I'm adding higher-order procedures because they are sweet
+
 ;; 
 ;;  The play-loop procedure takes as its  arguments two prisoner's
 ;;  dilemma strategies, and plays an iterated game of approximately
@@ -63,20 +65,30 @@
     (("d" "c") (5 0))
     (("d" "d") (1 1))))
 
+
 (define (extract-entry play associations)
+  (define (get-play association)
+    (car association))
+  (define (get-value association)
+    (cadr association))
+  (define (first-association a)
+    (car a))
+  (define (rest-of-associations a)
+    (cdr a))
   (define (first-play play)
-    (cdr play))
+    (car play))
   (define (second-play play)
     (cadr play))
-  (define (terms-match? play-outcome)
-    (and (string=? (first-play play) (first-play play-outcome))
-	 (string=? (second-play play) (second-play play-outcome))))
-  (define (iter play-outcomes)
-    (let ((play-outcome-list (car (car play-outcomes))))
-      (if (terms-match? play-outcome-list)
-	  play-outcome
-	  (iter (cdr play-outcomes)))))
+  (define (equal-plays? possibility)
+    (and (string=? (first-play play) (first-play possibility))
+	 (string=? (second-play play) (second-play possibility))))
+  (define (iter remaining)
+    (if (equal-plays? (get-play (first-association remaining)))
+	(first-association remaining)
+	(iter (rest-of-associations remaining))))
   (iter associations))
+
+
 
 (define (get-point-list game)
   (cadr (extract-entry game *game-association-list*)))
@@ -121,6 +133,23 @@
       "c"
       (most-recent-play other-history)))
 
+(define (EYE-FOR-TWO-EYES my-history other-history)
+  (define (last-n-test hist n)
+    (cond ((= n 0) "d")
+	  ((null? (rest-of-plays hist)) "c")
+	  (else	(if (string=? (most-recent-play hist) "c")
+	    "c"
+	    (last-n-test (rest-of-plays hist) (- n 1))))))
+  (if (empty-history? my-history)
+      "c"
+      (last-n-test other-history 2)))
+
+(EYE-FOR-TWO-EYES '("c" "d") '("c" "d" "c"))
+		      
+      
+
+(play-loop EYE-FOR-TWO-EYES NASTY)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; code to use in 3 player game
@@ -135,6 +164,8 @@
 ;        (list (list "d" "c" "d") (list 3 0 3))
 ;        (list (list "d" "d" "c") (list 3 3 0))
 ;        (list (list "d" "d" "d") (list 1 1 1))))
+
+
 
 
 ;; in expected-values: #f = don't care 
