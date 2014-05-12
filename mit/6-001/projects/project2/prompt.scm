@@ -1,5 +1,3 @@
-;;; I'm adding higher-order procedures because they are sweet
-
 ;; 
 ;;  The play-loop procedure takes as its  arguments two prisoner's
 ;;  dilemma strategies, and plays an iterated game of approximately
@@ -10,6 +8,18 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+(define (play-loop-view-history0 strat0 strat1)
+  (define (play-loop-iter strat0 strat1 count history0 history1 limit)
+    (cond ((= count limit) (display history0))
+	  (else (let ((result0 (strat0 history0 history1))
+		      (result1 (strat1 history1 history0)))
+		  (play-loop-iter strat0 strat1 (+ count 1)
+				  (extend-history result0 history0)
+				  (extend-history result1 history1)
+				  limit)))))
+  (play-loop-iter strat0 strat1 0 the-empty-history the-empty-history
+		  (+ 20 (random 21))))
 
 (define (play-loop strat0 strat1)
   (define (play-loop-iter strat0 strat1 count history0 history1 limit)
@@ -136,19 +146,70 @@
 (define (EYE-FOR-TWO-EYES my-history other-history)
   (define (last-n-test hist n)
     (cond ((= n 0) "d")
-	  ((null? (rest-of-plays hist)) "c")
-	  (else	(if (string=? (most-recent-play hist) "c")
-	    "c"
-	    (last-n-test (rest-of-plays hist) (- n 1))))))
+	  ((null? hist) "c")
+	  ((string=? (most-recent-play hist) "c") "c")
+	  (else (last-n-test (rest-of-plays hist) (- n 1)))))
   (if (empty-history? my-history)
       "c"
       (last-n-test other-history 2)))
 
-(EYE-FOR-TWO-EYES '("c" "d") '("c" "d" "c"))
-		      
+(define (make-eye-for-n-eyes n)
+  (define (last-n-test hist n)
+    (cond ((= n 0) "d")
+	  ((null? hist) "c")
+	  ((string=? (most-recent-play hist) "c") "c")
+	  (else (last-n-test (rest-of-plays hist) (- n 1)))))
+  (lambda (my-history other-history)
+    (if (empty-history? my-history)
+			"c"
+			(last-n-test other-history n))))
+
+(define EYE-FOR-THREE-EYES (make-eye-for-n-eyes 3))
+(define EYE-FOR-FIVE-EYES (make-eye-for-n-eyes 5))
+
+(define (make-rotating-strategy strat0 freq0 strat1 freq1)
+  (define (length-of-history hist)
+    (length hist))
+  (define (current-procedure-iter len cur-freq cur-proc last-freq last-proc)
+    (if (< (- len cur-freq) 0)
+	cur-proc
+	(current-procedure-iter (- len cur-freq) last-freq last-proc cur-freq cur-proc)))
+  (define (current-procedure hist)
+    (current-procedure-iter (length-of-history hist) freq0 strat0 freq1 strat1))
+  (lambda (my-history other-history)
+    ((current-procedure my-history) my-history other-history)))
+
+(define (against-all-strategies strat strategies)
+  (define (current-strategy strats) (car strats))
+  (define (rest-of-strategies strats) (cdr strats))
+  (define (run-round s)
+    (disp "Pitting " strat " versus " s)
+    (play-loop strat s)
+    (disp "\n"))
+  (if (null? strategies)
+      (values)
+      (let ((l (run-round (current-strategy strategies))))
+	(against-all-strategies strat (rest-of-strategies strategies)))))
+
+(define (make-higher-order-spastic strats)
+  (define (length-of-strategies s) (length s))
+  (define (length-of-history h) (length h))
+  (lambda (my-history other-history)
+    (let ((strat-length (length-of-strategies strats))
+	  (hist-length (length-of-history my-history)))
+      ((list-ref strats (remainder hist-length strat-length)) my-history other-history))))
+
+(play-loop-view-history0 (make-higher-order-spastic all-strategies) PATSY)
       
 
-(play-loop EYE-FOR-TWO-EYES NASTY)
+(define all-strategies (list PATSY NASTY SPASTIC EGALITARIAN EYE-FOR-EYE EYE-FOR-TWO-EYES EYE-FOR-FIVE-EYES))
+
+(define (run-strategies strat)
+  (disp ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n")
+  (disp ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n")
+  (against-all-strategies strat all-strategies))  
+
+(run-strategies (make-higher-order-spastic all-strategies))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

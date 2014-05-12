@@ -70,5 +70,57 @@ The only reason I included the 2n in the order-of-growth notation for the first 
 So we see that the second version is slightly faster, but in order-of-growth notation constants are usually ignored, so the difference in
 speed probably isn't significant.
 
+###Problem 4###
+
+It appears as though the behavior of EYE-FOR-TWO-EYES is very similar to EYE-FOR-EYE except that it loses by a fractional amount more
+when pitted against nasty and spastic. See ./scores_matrix.ods for the numbers.
+
+(define (EYE-FOR-TWO-EYES my-history other-history)
+  (define (last-n-test hist n)
+    (cond ((= n 0) "d")
+	  ((null? (rest-of-plays hist)) "c")
+	  (else	(if (string=? (most-recent-play hist) "c")
+	    "c"
+	    (last-n-test (rest-of-plays hist) (- n 1))))))
+  (if (empty-history? my-history)
+      "c"
+      (last-n-test other-history 2)))
+
+###PROBLEM 5###
+
+(define (make-eye-for-n-eyes n)
+  (define (last-n-test hist n)
+    (cond ((= n 0) "d")
+	  ((null? hist) "c")
+	  ((string=? (most-recent-play hist) "c") "c")
+	  (else (last-n-test (rest-of-plays hist) (- n 1)))))
+  (lambda (my-history other-history)
+    (if (empty-history? my-history)
+			"c"
+			(last-n-test other-history n))))
+
+Here is my definition of the procedure make-eye-for-n eyes. I used this to test eye-for-five-eyes, and found that as
+the "eyes" increase, the performance gets worse against NASTY and SPASTIC, but does not improve against any other opponent.
+
+###PROBLEM 6###
+
+(define (make-rotating-strategy strat0 freq0 strat1 freq1)
+  (define (length-of-history hist)
+    (length hist))
+  (define (current-procedure-iter len cur-freq cur-proc last-freq last-proc)
+    (if (< (- len cur-freq) 0)
+	cur-proc
+	(current-procedure-iter (- len cur-freq) last-freq last-proc cur-freq cur-proc)))
+  (define (current-procedure hist)
+    (current-procedure-iter (length-of-history hist) freq0 strat0 freq1 strat1))
+  (lambda (my-history other-history)
+    ((current-procedure my-history) my-history other-history)))
+
+This is my implementation. The most interesting result, as seen in the spreadsheet, is that a rotating 
+strategy between SPASTIC with frequency of 3 and EYE-FOR-EYE with a frequency of 10 actually allowed this
+strategy to beat EGALITARIAN, EYE-FOR-EYE, and PATSY where it had lost previously. Sadly, the average score was
+less than EYE-FOR-EYE, so it isn't a better choice.
+
+
 
 

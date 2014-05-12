@@ -7,4 +7,4 @@
   (load "test_two_player.scm"))
 
 
-(run-tests "l")
+(run-tests "w")
