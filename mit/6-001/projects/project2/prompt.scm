@@ -1,3 +1,13 @@
+(define (load-lib os)
+  (if (string=? os "w")
+      (cd "c:/school/mit/6-001/projects/project2")
+      (cd "~/Documents/school/mit/6-001/projects/project2"))
+  (load "../../lib.scm"))
+
+
+(load-lib "w")
+
+
 ;; 
 ;;  The play-loop procedure takes as its  arguments two prisoner's
 ;;  dilemma strategies, and plays an iterated game of approximately
@@ -199,8 +209,16 @@
 	  (hist-length (length-of-history my-history)))
       ((list-ref strats (remainder hist-length strat-length)) my-history other-history))))
 
-(play-loop-view-history0 (make-higher-order-spastic all-strategies) PATSY)
-      
+(define (gentle strat gentleness-factor)
+  (define (random-acts-of-gentleness)
+    (<= (/ (+ 1 (random 1000)) 1000) gentleness-factor))
+  (lambda (my-history other-history)
+    (if (random-acts-of-gentleness)
+	"c"
+	(strat my-history other-history))))
+
+(define SLIGHTLY-GENTLE-NASTY (gentle NASTY 0.1))
+(define SLIGHTLY-GENTLE-EYE-FOR-EYE (gentle EYE-FOR-EYE 0.1))
 
 (define all-strategies (list PATSY NASTY SPASTIC EGALITARIAN EYE-FOR-EYE EYE-FOR-TWO-EYES EYE-FOR-FIVE-EYES))
 
@@ -209,7 +227,7 @@
   (disp ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n")
   (against-all-strategies strat all-strategies))  
 
-(run-strategies (make-higher-order-spastic all-strategies))
+(run-strategies SLIGHTLY-GENTLE-EYE-FOR-EYE)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
