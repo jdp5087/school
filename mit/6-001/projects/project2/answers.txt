@@ -121,6 +121,250 @@ strategy between SPASTIC with frequency of 3 and EYE-FOR-EYE with a frequency of
 strategy to beat EGALITARIAN, EYE-FOR-EYE, and PATSY where it had lost previously. Sadly, the average score was
 less than EYE-FOR-EYE, so it isn't a better choice.
 
+###PROBLEM 7###
+
+(define (make-higher-order-spastic strats)
+  (define (length-of-strategies s) (length s))
+  (define (length-of-history h) (length h))
+  (lambda (my-history other-history)
+    (let ((strat-length (length-of-strategies strats))
+	  (hist-length (length-of-history my-history)))
+      ((list-ref strats (remainder hist-length strat-length)) my-history other-history))))
+
+Interesting, Higher-order-spastic with all functions passed in to strats actually outperformed eye-for-eye against patsy and egalitarian,
+though it fell short against other opponents.
+
+###PROBLEM 8###
+
+(define (gentle strat gentleness-factor)
+  (define (random-acts-of-gentleness)
+    (<= (/ (+ 1 (random 1000)) 1000) gentleness-factor))
+  (lambda (my-history other-history)
+    (if (random-acts-of-gentleness)
+	"c"
+	(strat my-history other-history))))
 
 
+###PROBLEM 9###
+
+(define (play-loop-three strat0 strat1 strat2)
+  (define (play-loop-iter strat0 strat1 strat2 count history0 history1 history2 limit)
+    (cond ((= count limit) (print-out-results-three history0 history1 history2 limit))
+	  (else (let ((result0 (strat0 history0 history1 history2))
+		      (result1 (strat1 history1 history0 history2))
+		      (result2 (strat2 history2 history0 history1)))
+		  (play-loop-iter strat0 strat1 strat2 (+ count 1)
+				  (extend-history result0 history0)
+				  (extend-history result1 history1)
+				  (extend-history result2 history2)
+				  limit)))))
+  (play-loop-iter strat0 strat1 strat2 0 the-empty-history the-empty-history the-empty-history
+		  (+ 90 (random 21))))
+
+(define (print-out-results-three history0 history1 history2 number-of-games)
+  (let ((scores (get-scores-three history0 history1 history2)))
+    (newline)
+    (display "Player 1 Score:  ")
+    (display (* 1.0 (/ (car scores) number-of-games)))
+    (newline)
+    (display "Player 2 Score:  ")
+    (display (* 1.0 (/ (cadr scores) number-of-games)))
+    (newline)
+    (display "Player 3 Score:  ")
+    (display (* 1.0 (/ (caddr scores) number-of-games)))
+    (newline)))
+
+(define (get-scores-three history0 history1 history2)
+  (define (get-scores-helper history0 history1 history2 score0 score1 score2)
+    (cond ((empty-history? history0)
+	   (list score0 score1 score2))
+	  (else (let ((game (make-play (most-recent-play history0)
+				       (most-recent-play history1)
+				       (most-recent-play history2))))
+		  (get-scores-helper (rest-of-plays history0)
+				     (rest-of-plays history1)
+				     (rest-of-plays history2)
+				     (+ (get-player-points-three 0 game) score0)
+				     (+ (get-player-points-three 1 game) score1)
+				     (+ (get-player-points-three 2 game) score2))))))
+  (get-scores-helper history0 history1 history2 0 0 0))
+
+(define (get-player-points-three num game)
+  (list-ref (get-point-list-three game) num))
+
+
+(define (get-point-list-three game)
+  (cadr (extract-entry game *game-association-list-three*)))
+
+###PROBLEM 10###
+
+(define (patsy-3 my-history other-history0 other-history1)
+  "c")
+
+(define (nasty-3 my-history other-history0 other-history1)
+  "d")
+
+(define (spastic-3 my-history other-history0 other-history1)
+  (define (spas-out?)
+    (= 1 (random 2)))
+  (if (spas-out?)
+      "d"
+      "c"))
+
+(define (eye-for-eye-three-flex op)
+  (lambda (my-history other-history0 other-history1)
+      (define (other-defected? hist)
+	(string=? "d" (most-recent-play hist)))
+      (define (check-others hist0 hist1)
+	(if (op (other-defected? hist0) (other-defected? hist1))
+	    "d"
+	    "c"))
+      (if (empty-history? my-history)
+	  "c"
+	  (check-others other-history0 other-history1))))
+
+(define (tough-eye-for-eye-three my-history other-history0 other-history1)
+  (define (either? arg1 arg2)
+    (or arg1 arg2))
+  ((eye-for-eye-three-flex either?) my-history other-history0 other-history1))
+
+(define (soft-eye-for-eye-three my-history other-history0 other-history1)
+  (define (both? a b)
+    (and a b))
+  ((eye-for-eye-three-flex both?) my-history other-history0 other-history1))
+
+###PROBLEM 11###
+
+(define (make-combined-strategies strat0 strat1 comb)
+  (lambda (my-history other-history0 other-history1)
+    (comb (strat0 my-history other-history0)
+	  (strat1 my-history other-history1))))
+
+###PROBLEM 12###
+
+(define (history-branches a b c) (list a b c))
+(define (reaction-branches a b c) (list a b c))
+(define cc-ref 0)
+(define cd-ref 1)
+(define dd-ref 2)
+(define react-c 0)
+(define react-d 1)
+(define react-ttl 2)
+
+(define (history-summary cc cd dd)
+  (history-branches cc cd dd))
+
+(define (reaction-summary c d ttl)
+  (reaction-branches c d ttl))
+
+(define (cooperate-cooperate hist-sum)
+  (list-ref hist-sum cc-ref))
+(define (cooperate-defect hist-sum)
+  (list-ref hist-sum cd-ref))
+(define (defect-defect hist-sum)
+  (list-ref hist-sum dd-ref))
+
+(define (reaction-c reaction)
+  (list-ref reaction react-c))
+(define (reaction-d reaction)
+  (list-ref reaction react-d))
+(define (reaction-ttl reaction)
+  (list-ref reaction react-ttl))
+
+(define empty-history-summary (history-summary (reaction-summary 0 0 0) (reaction-summary 0 0 0) (reaction-summary 0 0 0)))
+
+(define (make-history-summary hist0 hist1 hist2)
+  (define (previous-turn hist)
+    (most-recent-play (rest-of-plays hist)))
+  (define (record-reaction hist0 previous-reactions)
+    (let ((play (most-recent-play hist0)))
+      (cond ((string=? play "c") (reaction-summary (+ 1 (reaction-c previous-reactions))
+						   (reaction-d previous-reactions)
+						   (+ 1 (reaction-ttl previous-reactions))))
+	    ((string=? play "d") (reaction-summary (reaction-c previous-reactions)
+						   (+ 1 (reaction-d previous-reactions))
+						   (+ 1 (reaction-ttl previous-reactions)))))))
+	       
+  (define (last-turn-others hist1 hist2)
+    (list (previous-turn hist1) (previous-turn hist2)))
+  (define (cc? prev-turn)
+    (and (string=? (list-ref prev-turn 0) "c") (string=? (list-ref prev-turn 1) "c")))
+  (define (dd? prev-turn)
+    (and (string=? (list-ref prev-turn 0) "d") (string=? (list-ref prev-turn 1) "d")))
+  (define (make-hist-iter hist0 hist1 hist2 summary)
+    (cond ((empty-history? (rest-of-plays hist0)) summary)
+	  ((cc? (last-turn-others hist1 hist2))
+	   (make-hist-iter (rest-of-plays hist0)
+			   (rest-of-plays hist1)
+			   (rest-of-plays hist2)
+			   (history-summary (record-reaction hist0 (cooperate-cooperate summary))
+					    (cooperate-defect summary)
+					    (defect-defect summary))))
+	  ((dd? (last-turn-others hist1 hist2))
+	   (make-hist-iter (rest-of-plays hist0)
+			   (rest-of-plays hist1)
+			   (rest-of-plays hist2)
+			   (history-summary (cooperate-cooperate summary)
+					    (cooperate-defect summary)
+					    (record-reaction hist0 (defect-defect summary)))))
+	  (else
+	   (make-hist-iter (rest-of-plays hist0)
+			   (rest-of-plays hist1)
+			   (rest-of-plays hist2)
+			   (history-summary (cooperate-cooperate summary)
+					    (record-reaction hist0 (cooperate-defect summary))
+					    (defect-defect summary))))))
+  (make-hist-iter hist0 hist1 hist2 empty-history-summary))
+    
+(make-history-summary
+ (list "c" "c" "d" "d" "c" "d" "c" "c")
+ (list "c" "c" "c" "d" "d" "c" "d" "c")
+ (list "c" "c" "d" "d" "d" "c" "c" "c"))
+
+###PROBLEM 13###
+
+(define (get-probability-of-c summary)
+  (map (lambda (sequence)
+	 (if (= (list-ref sequence 2) 0)
+	     '()
+	     (/ (list-ref sequence 0)
+		(list-ref sequence 2))))
+       summary))
+
+
+###PROBLEM 14###
+
+(define (soft-EFE? hist0 hist1 hist2)
+  (test-entry (list 1 1 0)
+	      (map (lambda (e) ;;; remove empty values because we can't be certain whether they will exist
+		     (if (null? e)
+			 1
+			 e))
+		   (get-probability-of-c (make-history-summary hist0
+							       hist1
+							       hist2)))))
+
+(define (dont-tolerate-fools my-history other-history0 other-history1)
+  (define (history-length h)
+    (length h))
+  (define (are-they-fools?)
+    (and (could-he-be-a-fool? other-history0 my-history other-history1)
+	 (could-he-be-a-fool? other-history1 my-history other-history0)))
+  (cond ((< (history-length my-history) 10) "c")
+	((are-they-fools?) "d")
+	(else "c")))
+  
+(play-loop-three patsy-3 patsy dont-tolerate-fools)
+Player 1 Score:  2.210526315789474
+Player 2 Score:  2.210526315789474
+Player 3 Score:  4.894736842105263
+;Unspecified return value
+
+(play-loop-three patsy-3 nasty-3 dont-tolerate-fools)
+Player 1 Score:  2.
+Player 2 Score:  5.
+Player 3 Score:  2.
+;Unspecified return value
+
+It is interesting to note that the dont-tolerate-fools strategy ends up being a patsy-3 against any two strategies that are not patsy.
 

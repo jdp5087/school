@@ -5,7 +5,7 @@
   (load "../../lib.scm"))
 
 
-(load-lib "w")
+(load-lib "l")
 
 
 ;; 
@@ -85,7 +85,6 @@
     (("d" "c") (5 0))
     (("d" "d") (1 1))))
 
-
 (define (extract-entry play associations)
   (define (get-play association)
     (car association))
@@ -95,20 +94,13 @@
     (car a))
   (define (rest-of-associations a)
     (cdr a))
-  (define (first-play play)
-    (car play))
-  (define (second-play play)
-    (cadr play))
   (define (equal-plays? possibility)
-    (and (string=? (first-play play) (first-play possibility))
-	 (string=? (second-play play) (second-play possibility))))
+    (equal? play possibility))
   (define (iter remaining)
     (if (equal-plays? (get-play (first-association remaining)))
 	(first-association remaining)
 	(iter (rest-of-associations remaining))))
   (iter associations))
-
-
 
 (define (get-point-list game)
   (cadr (extract-entry game *game-association-list*)))
@@ -234,41 +226,250 @@
 ;; code to use in 3 player game
 ;;	    
 
-;(define *game-association-list*
-;  (list (list (list "c" "c" "c") (list 4 4 4))
-;        (list (list "c" "c" "d") (list 2 2 5))
-;        (list (list "c" "d" "c") (list 2 5 2))
-;        (list (list "d" "c" "c") (list 5 2 2))
-;        (list (list "c" "d" "d") (list 0 3 3))
-;        (list (list "d" "c" "d") (list 3 0 3))
-;        (list (list "d" "d" "c") (list 3 3 0))
-;        (list (list "d" "d" "d") (list 1 1 1))))
+(define (play-loop-three strat0 strat1 strat2)
+  (define (play-loop-iter strat0 strat1 strat2 count history0 history1 history2 limit)
+    (cond ((= count limit) (print-out-results-three history0 history1 history2 limit))
+	  (else (let ((result0 (strat0 history0 history1 history2))
+		      (result1 (strat1 history1 history0 history2))
+		      (result2 (strat2 history2 history0 history1)))
+		  (play-loop-iter strat0 strat1 strat2 (+ count 1)
+				  (extend-history result0 history0)
+				  (extend-history result1 history1)
+				  (extend-history result2 history2)
+				  limit)))))
+  (play-loop-iter strat0 strat1 strat2 0 the-empty-history the-empty-history the-empty-history
+		  (+ 90 (random 21))))
+
+(define (print-out-results-three history0 history1 history2 number-of-games)
+  (let ((scores (get-scores-three history0 history1 history2)))
+    (newline)
+    (display "Player 1 Score:  ")
+    (display (* 1.0 (/ (car scores) number-of-games)))
+    (newline)
+    (display "Player 2 Score:  ")
+    (display (* 1.0 (/ (cadr scores) number-of-games)))
+    (newline)
+    (display "Player 3 Score:  ")
+    (display (* 1.0 (/ (caddr scores) number-of-games)))
+    (newline)))
+
+(define (get-scores-three history0 history1 history2)
+  (define (get-scores-helper history0 history1 history2 score0 score1 score2)
+    (cond ((empty-history? history0)
+	   (list score0 score1 score2))
+	  (else (let ((game (make-play (most-recent-play history0)
+				       (most-recent-play history1)
+				       (most-recent-play history2))))
+		  (get-scores-helper (rest-of-plays history0)
+				     (rest-of-plays history1)
+				     (rest-of-plays history2)
+				     (+ (get-player-points-three 0 game) score0)
+				     (+ (get-player-points-three 1 game) score1)
+				     (+ (get-player-points-three 2 game) score2))))))
+  (get-scores-helper history0 history1 history2 0 0 0))
+
+(define (get-player-points-three num game)
+  (list-ref (get-point-list-three game) num))
+
+
+(define (get-point-list-three game)
+  (cadr (extract-entry game *game-association-list-three*)))
+
+
+(define *game-association-list-three*
+  (list (list (list "c" "c" "c") (list 4 4 4))
+        (list (list "c" "c" "d") (list 2 2 5))
+        (list (list "c" "d" "c") (list 2 5 2))
+        (list (list "d" "c" "c") (list 5 2 2))
+        (list (list "c" "d" "d") (list 0 3 3))
+        (list (list "d" "c" "d") (list 3 0 3))
+        (list (list "d" "d" "c") (list 3 3 0))
+        (list (list "d" "d" "d") (list 1 1 1))))
 
 
 
-
-;; in expected-values: #f = don't care 
-;;                      X = actual-value needs to be #f or X 
-;(define (test-entry expected-values actual-values) 
-;   (cond ((null? expected-values) (null? actual-values)) 
-;         ((null? actual-values) #f) 
-;         ((or (not (car expected-values)) 
-;              (not (car actual-values)) 
-;              (= (car expected-values) (car actual-values))) 
-;          (test-entry (cdr expected-values) (cdr actual-values))) 
-;         (else #f))) 
 ;
 ;(define (is-he-a-fool? hist0 hist1 hist2) 
 ;   (test-entry (list 1 1 1) 
 ;               (get-probability-of-c 
 ;                (make-history-summary hist0 hist1 hist2))))
 ;
-;(define (could-he-be-a-fool? hist0 hist1 hist2)
-;  (test-entry (list 1 1 1)
-;              (map (lambda (elt) 
-;                      (cond ((null? elt) 1)
-;                            ((= elt 1) 1)  
-;                            (else 0)))
-;                   (get-probability-of-c (make-history-summary hist0 
-;                                                               hist1
-;                                                               hist2)))))
+
+(define (patsy-3 my-history other-history0 other-history1)
+  "c")
+
+(define (nasty-3 my-history other-history0 other-history1)
+  "d")
+
+(define (spastic-3 my-history other-history0 other-history1)
+  (define (spas-out?)
+    (= 1 (random 2)))
+  (if (spas-out?)
+      "d"
+      "c"))
+
+(define (eye-for-eye-three-flex op)
+  (lambda (my-history other-history0 other-history1)
+      (define (other-defected? hist)
+	(string=? "d" (most-recent-play hist)))
+      (define (check-others hist0 hist1)
+	(if (op (other-defected? hist0) (other-defected? hist1))
+	    "d"
+	    "c"))
+      (if (empty-history? my-history)
+	  "c"
+	  (check-others other-history0 other-history1))))
+
+(define (tough-eye-for-eye-three my-history other-history0 other-history1)
+  (define (either? arg1 arg2)
+    (or arg1 arg2))
+  ((eye-for-eye-three-flex either?) my-history other-history0 other-history1))
+
+(define (soft-eye-for-eye-three my-history other-history0 other-history1)
+  (define (both? a b)
+    (and a b))
+  ((eye-for-eye-three-flex both?) my-history other-history0 other-history1))
+
+(define (make-combined-strategies strat0 strat1 comb)
+  (lambda (my-history other-history0 other-history1)
+    (comb (strat0 my-history other-history0)
+	  (strat1 my-history other-history1))))
+
+
+(play-loop-three patsy-3 nasty-3 soft-eye-for-eye-three)
+
+(play-loop-three patsy-3 nasty-3
+		 (make-combined-strategies EYE-FOR-EYE EYE-FOR-EYE
+					   (lambda (r1 r2) (if (or (string=? r1 "d") (string=? r2 "d")) "d" "c"))))
+
+(define (history-branches a b c) (list a b c))
+(define (reaction-branches a b c) (list a b c))
+(define cc-ref 0)
+(define cd-ref 1)
+(define dd-ref 2)
+(define react-c 0)
+(define react-d 1)
+(define react-ttl 2)
+
+(define (history-summary cc cd dd)
+  (history-branches cc cd dd))
+
+(define (reaction-summary c d ttl)
+  (reaction-branches c d ttl))
+
+(define (cooperate-cooperate hist-sum)
+  (list-ref hist-sum cc-ref))
+(define (cooperate-defect hist-sum)
+  (list-ref hist-sum cd-ref))
+(define (defect-defect hist-sum)
+  (list-ref hist-sum dd-ref))
+
+(define (reaction-c reaction)
+  (list-ref reaction react-c))
+(define (reaction-d reaction)
+  (list-ref reaction react-d))
+(define (reaction-ttl reaction)
+  (list-ref reaction react-ttl))
+
+(define empty-history-summary (history-summary (reaction-summary 0 0 0) (reaction-summary 0 0 0) (reaction-summary 0 0 0)))
+
+(define (make-history-summary hist0 hist1 hist2)
+  (define (previous-turn hist)
+    (most-recent-play (rest-of-plays hist)))
+  (define (record-reaction hist0 previous-reactions)
+    (let ((play (most-recent-play hist0)))
+      (cond ((string=? play "c") (reaction-summary (+ 1 (reaction-c previous-reactions))
+						   (reaction-d previous-reactions)
+						   (+ 1 (reaction-ttl previous-reactions))))
+	    ((string=? play "d") (reaction-summary (reaction-c previous-reactions)
+						   (+ 1 (reaction-d previous-reactions))
+						   (+ 1 (reaction-ttl previous-reactions)))))))
+	       
+  (define (last-turn-others hist1 hist2)
+    (list (previous-turn hist1) (previous-turn hist2)))
+  (define (cc? prev-turn)
+    (and (string=? (list-ref prev-turn 0) "c") (string=? (list-ref prev-turn 1) "c")))
+  (define (dd? prev-turn)
+    (and (string=? (list-ref prev-turn 0) "d") (string=? (list-ref prev-turn 1) "d")))
+  (define (make-hist-iter hist0 hist1 hist2 summary)
+    (cond ((empty-history? (rest-of-plays hist0)) summary)
+	  ((cc? (last-turn-others hist1 hist2))
+	   (make-hist-iter (rest-of-plays hist0)
+			   (rest-of-plays hist1)
+			   (rest-of-plays hist2)
+			   (history-summary (record-reaction hist0 (cooperate-cooperate summary))
+					    (cooperate-defect summary)
+					    (defect-defect summary))))
+	  ((dd? (last-turn-others hist1 hist2))
+	   (make-hist-iter (rest-of-plays hist0)
+			   (rest-of-plays hist1)
+			   (rest-of-plays hist2)
+			   (history-summary (cooperate-cooperate summary)
+					    (cooperate-defect summary)
+					    (record-reaction hist0 (defect-defect summary)))))
+	  (else
+	   (make-hist-iter (rest-of-plays hist0)
+			   (rest-of-plays hist1)
+			   (rest-of-plays hist2)
+			   (history-summary (cooperate-cooperate summary)
+					    (record-reaction hist0 (cooperate-defect summary))
+					    (defect-defect summary))))))
+  (make-hist-iter hist0 hist1 hist2 empty-history-summary))
+    
+(make-history-summary
+ (list "c" "c" "d" "d" "c" "d" "c" "c")
+ (list "c" "c" "c" "d" "d" "c" "d" "c")
+ (list "c" "c" "d" "d" "d" "c" "c" "c"))
+
+(define (get-probability-of-c summary)
+  (map (lambda (sequence)
+	 (if (= (list-ref sequence 2) 0)
+	     '()
+	     (/ (list-ref sequence 0)
+		(list-ref sequence 2))))
+       summary))
+
+;; in expected-values: #f = don't care 
+;;                      X = actual-value needs to be #f or X 
+(define (test-entry expected-values actual-values) 
+  (cond ((null? expected-values) (null? actual-values)) 
+	((null? actual-values) #f)
+	((null? (car actual-values)) ;; added this case to account for lists with null values
+	 (null? (car expected-values)))
+	((or (not (car expected-values)) 
+	     (not (car actual-values)) 
+	     (= (car expected-values) (car actual-values))) 
+	 (test-entry (cdr expected-values) (cdr actual-values))) 
+	(else #f)))
+
+
+(define (soft-EFE? hist0 hist1 hist2)
+  (test-entry (list 1 1 0)
+	      (map (lambda (e) ;;; remove empty values because we can't be certain whether they will exist
+		     (if (null? e)
+			 1
+			 e))
+		   (get-probability-of-c (make-history-summary hist0
+							       hist1
+							       hist2)))))
+(define (could-he-be-a-fool? hist0 hist1 hist2)
+  (test-entry (list 1 1 1)
+              (map (lambda (elt) 
+		     (cond ((null? elt) 1)
+			   ((= elt 1) 1)  
+			   (else 0)))
+                   (get-probability-of-c (make-history-summary hist0 
+                                                               hist1
+                                                               hist2)))))
+
+(define (dont-tolerate-fools my-history other-history0 other-history1)
+  (define (history-length h)
+    (length h))
+  (define (are-they-fools?)
+    (and (could-he-be-a-fool? other-history0 my-history other-history1)
+	 (could-he-be-a-fool? other-history1 my-history other-history0)))
+  (cond ((< (history-length my-history) 10) "c")
+	((are-they-fools?) "d")
+	(else "c")))
+  
+
