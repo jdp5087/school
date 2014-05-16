@@ -1,0 +1,167 @@
+###2.53###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.53.  What would the interpreter print in response to evaluating each of the following expressions?
+------------------------------------------------------------
+
+(define (memq item x)
+  (cond ((null? x) false)
+        ((eq? item (car x)) x)
+        (else (memq item (cdr x)))))
+
+(list 'a 'b 'c)
+;;(a b c)
+
+(list (list 'george))
+;; ((george))
+
+(cdr '((x1 x2) (y1 y2)))
+;;((y1 y2))  ;; tricky if you rush this one
+
+(cadr '((x1 x2) (y1 y2)))
+;;(y1 y2)
+
+(pair? (car '(a short list)))
+;;#f
+
+(memq 'red '((red shoes) (blue socks)))
+;;#f
+
+(memq 'red '(red shoes blue socks))
+;;(red shoes blue socks)
+
+###2.54###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.54.  Two lists are said to be equal? if they contain equal elements arranged in the same order. For example,
+
+(equal? '(this is a list) '(this is a list))
+
+is true, but
+
+(equal? '(this is a list) '(this (is a) list))
+
+is false. To be more precise, we can define equal? recursively in terms of the basic eq? equality of symbols by saying that a and b are equal? if they are both symbols and the symbols are eq?, or if they are both lists such that (car a) is equal? to (car b) and (cdr a) is equal? to (cdr b). Using this idea, implement equal? as a procedure
+------------------------------------------------------------
+
+(define (my-equal? a b)
+  (cond ((and (null? a) (null? b)) true)
+	((and (list? (car a)) (list? (car b))) (my-equal? (car a) (car b)))
+	((and (number? (car a)) (number? (car b)) (= (car a) (car b))) (my-equal? (cdr a) (cdr b)))
+	((and (symbol? (car a)) (symbol? (car b)) (eq? (car a) (car b))) (my-equal? (cdr a) (cdr b)))
+	(else false)))
+
+(my-equal? '(1 2 '(a b)) '(1 2 '(a b)))
+;Value: #t
+
+(my-equal? '(1 2 '(a b)) '(1 2 '(a c)))
+;Value: #f
+
+###2.55###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.55.  Eva Lu Ator types to the interpreter the expression
+
+(car ''abracadabra)
+
+To her surprise, the interpreter prints back quote. Explain.
+------------------------------------------------------------
+
+(car ''abracadabra)
+;Value: quote
+
+My best explanation of this is by looking at:
+
+''abracadabra
+;Value 22: (quote abracadabra)
+
+
+It appears that we have quoted a symbol that would have been interpreted by the evaluator
+by applying quote to abracadabra. We are seeing the data structure as the interpreter would, before evaluation.
+
+A better way of putting this might be to say that we are seeing the symbolic representation of a symbolic representation
+in the interpreter. This is confirmed by looking at:
+
+'''abracadabra
+;Value 25: (quote (quote abracadabra))
+
+###2.56###
+PROMPT:
+------------------------------------------------------------
+Exercise 2.56.  Show how to extend the basic differentiator to handle more kinds of expressions. For instance, implement the differentiation rule
+
+
+by adding a new clause to the deriv program and defining appropriate procedures exponentiation?, base, exponent, and make-exponentiation. (You may use the symbol ** to denote exponentiation.) Build in the rules that anything raised to the power 0 is 1 and anything raised to the power 1 is the thing itself.
+------------------------------------------------------------
+
+(define (deriv exp var)
+  (cond ((number? exp) 0)
+        ((variable? exp)
+         (if (same-variable? exp var) 1 0))
+        ((sum? exp)
+         (make-sum (deriv (addend exp) var)
+                   (deriv (augend exp) var)))
+        ((product? exp)
+         (make-sum
+           (make-product (multiplier exp)
+                         (deriv (multiplicand exp) var))
+           (make-product (deriv (multiplier exp) var)
+                         (multiplicand exp))))
+	((exponentiation? exp)
+	 (make-product (make-product (exponent exp)
+				     (make-exponentiation (base exp) (- (exponent exp) 1)))
+		       (deriv (base exp) var)))
+        (else
+         (error "unknown expression type -- DERIV" exp))))
+
+(define (variable? x) (symbol? x))
+
+(define (same-variable? v1 v2)
+  (and (variable? v1) (variable? v2) (eq? v1 v2)))
+
+(define (sum? x)
+  (and (pair? x) (eq? (car x) '+)))
+
+(define (addend s) (cadr s))
+
+(define (augend s) (caddr s))
+
+(define (product? x)
+  (and (pair? x) (eq? (car x) '*)))
+
+(define (multiplier p) (cadr p))
+
+(define (multiplicand p) (caddr p))
+
+(define (make-sum a1 a2)
+  (cond ((=number? a1 0) a2)
+        ((=number? a2 0) a1)
+        ((and (number? a1) (number? a2)) (+ a1 a2))
+        (else (list '+ a1 a2))))
+
+(define (=number? exp num)
+  (and (number? exp) (= exp num)))
+
+(define (make-product m1 m2)
+  (cond ((or (=number? m1 0) (=number? m2 0)) 0)
+        ((=number? m1 1) m2)
+        ((=number? m2 1) m1)
+        ((and (number? m1) (number? m2)) (* m1 m2))
+        (else (list '* m1 m2))))
+
+(define (exponentiation? x)
+  (and (pair? x) (eq? (car x) '**)))
+
+(define (base x)
+  (cadr x))
+(define (exponent x)
+  (caddr x))
+(define (make-exponentiation base exp)
+  (cond ((=number? exp 0) 1)
+	((=number? exp 1) base)
+	(else (list '** base exp))))
+
+
+
+(deriv '(** x 3) 'x)
+;Value 28: (* 3 (** x 2))

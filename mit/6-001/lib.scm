@@ -32,7 +32,10 @@
 (define (length sequence)
   (accumulate (lambda (x y) (+ 1 y)) 0 sequence))
 
-
+(define (memq item x)
+  (cond ((null? x) false)
+        ((eq? item (car x)) x)
+        (else (memq item (cdr x)))))
 
 
 
