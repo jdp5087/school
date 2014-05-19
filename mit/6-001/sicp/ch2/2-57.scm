@@ -56,4 +56,5 @@ Try to do this by changing only the representation for sums and products, withou
 
 
 ;;; This seemed way too difficult until I figured out that they literally meant that I was supposed
-;;; to change the augend and mupltiplicand procedures, not just make-sum and make-product (Though as you can tell I changed those too).
+;;; to change the augend and multiplicand procedures, not just make-sum and make-product (Though as you can tell I changed those too).
+
