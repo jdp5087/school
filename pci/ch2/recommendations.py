@@ -1,6 +1,8 @@
 import numpy as np
 from math import sqrt
 
+from critics import critics
+
 def sim_distance(prefs,person1,person2):
     # Get the list of shared_items
     si={}
@@ -50,69 +52,45 @@ def calc_distances(prefs, func):
     return np.array(rows)
 
 def topMatches(prefs,person,n=5,similarity=sim_pearson):
-    scores = [similarity(prefs,person,other)
+    scores = [(similarity(prefs,person,other), other)
               for other in prefs if other!=person]
     
     scores.sort()
     scores.reverse()
     return scores[0:n]
     
-                         
+def getRecommendations(prefs, person, similarity=sim_pearson):
+    totals = {}
+    simSums = {}
+    ## Iterate all critics other than person
+    for other in prefs:
+        if other == person: continue
+        sim = similarity(prefs, person, other)
+        ## if similarity is less than 0, skip
+        if sim <= 0: continue
+        for item in prefs[other]:
+            ## if person hasn't viewed or if they rated item as 0, calculate recommendations
+            if item not in prefs[person] or prefs[person][item] == 0:
+                totals.setdefault(item, 0)
+                ## add other's rating of item * similarity as a weight
+                totals[item] += prefs[other][item] * sim
+                simSums.setdefault(item, 0)
+                ## add up all sims used in th
+                simSums[item] += sim
+        ## Normalize by weight of sums that apply to each particular item
+        rankings = [(total/simSums[item], item) for item, total in totals.items()]
 
-
-# A DICTIONARY OF MOVIE CRITICS AND THEIR RATINGS OF A SMALL SET OF MOVIES
-critics = {
-    'Lisa Rose': {
-        'Lady in the Water': 2.5,
-        'Snakes on a Plane': 3.5,
-        'Just My Luck': 3.0,
-        'Superman Returns': 3.5,
-        'You, Me and Dupree': 2.5,
-        'The Night Listener': 3.0
-        },
-    'Gene Seymour': {
-        'Lady in the Water': 3.0,
-        'Snakes on a Plane': 3.5,
-        'Just My Luck': 1.5,
-        'Superman Returns': 3.5,
-        'The Night Listener': 3.0,
-        'You, Me and Dupree': 3.5,
-        },
-    'Michael Phillips': {
-        'Lady in the Water': 2.5,
-        'Snakes on a Plane': 3.0,
-        'Superman Returns': 3.5,
-        'The Night Listener': 4.0,
-        },
-    'Claudia Puig': {
-        'Snakes on a Plane': 3.5,
-        'Just My Luck': 3.0,
-        'Superman Returns': 4.0,
-        'The Night Listener': 4.5,
-        'You, Me and Dupree': 2.5,
-        },
-    'Mick LaSalle': {
-        'Lady in the Water': 3.0,
-        'Snakes on a Plane': 4.0,
-        'Just My Luck': 2.0,
-        'Superman Returns': 3.0,
-        'You, Me and Dupree': 2.0,
-        'The Night Listener': 3.0
-        },
-    'Jack Matthews': {
-        'Lady in the Water': 3.0,
-        'Snakes on a Plane': 4.0,
-        'Just My Luck': 2.0,
-        'Superman Returns': 5.0,
-        'You, Me and Dupree': 3.5,
-        'The Night Listener': 3.0
-        },
-    'Toby': {
-        'Snakes on a Plane': 4.5,
-        'Superman Returns': 4.0,
-        'You, Me and Dupree': 1.0,
-        },
-    }
+    rankings.sort()
+    rankings.reverse()
+    return rankings
+            
+def transformPrefs(prefs):
+    result = {}
+    for person in prefs:
+        for item in prefs[person]:
+            result.setdefault(item, {})
+            result[item][person] = prefs[person][item]
+    return result
 
 if __name__ == '__main__':
-    print topMatches(critics, 'Toby')
+    print(topMatches(transformPrefs(critics), 'Just My Luck'))
