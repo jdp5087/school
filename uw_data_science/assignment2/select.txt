@@ -1,0 +1,72 @@
+###PROBLEM 1###
+
+(a) 
+
+SELECT count(*)
+FROM frequency
+WHERE frequency.docid = "10398_txt_earn";
+
+138 records
+
+(b)
+
+SELECT count(term)
+FROM frequency as f
+WHERE (f.docid = "10398_txt_earn")
+AND (f.count = 1);
+
+count = 110
+
+(c)
+
+SELECT count(*)
+FROM 
+(
+     SELECT term
+     FROM frequency AS f
+     WHERE f.docid = "10398_txt_earn"
+     AND f.count = 1
+     UNION
+     SELECT term
+     FROM frequency as f
+     WHERE f.docid = "925_txt_trade"
+     AND f.count = 1
+);
+
+count = 324
+
+(d)
+
+SELECT count(*)
+FROM frequency
+WHERE frequency.term = "parliament";
+
+count = 15
+
+(e)
+
+SELECT count(*)
+FROM (
+     SELECT docid, sum(count)
+     FROM frequency
+     GROUP BY docid
+     HAVING sum(count) > 300
+);
+
+count = 107
+
+(f)
+
+SELECT count(*)
+FROM (
+     SELECT docid
+     FROM frequency as f
+     GROUP BY docid
+     HAVING f.term = "transactions"
+     OR f.term = "world"
+);
+
+###PROBLEM 2###
+
+
+
