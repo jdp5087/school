@@ -30,15 +30,18 @@ Make-leaf-set is the procedure given above that transforms the list of pairs int
 
 (define (successive-merge pairs)
   (define (merge-iter leaf-set)
-    (if (null? (cadr leaf-set))
-	tree
+    (if (null? (cdr leaf-set))
+	(car leaf-set)
 	(let ((c (car leaf-set))
 	      (d (cadr leaf-set)))
-	  (merge-iter (adjoin-set (make-code-tree c d) (cddr leaf-set)))))))
+	  (merge-iter (adjoin-set (make-code-tree c d) (cddr leaf-set))))))
+  (merge-iter pairs))
 
-(define leaf-set (make-leaf-set '((A 8) (Q 3) (C 1) (D 1) (E 1) (F 1) (G 1) (H 1))))
+(define leaf-set '((A 8) (Q 3) (C 1) (D 1) (E 1) (F 1) (G 1) (H 1)))
 
 (generate-huffman-tree leaf-set)
+;Value 35: ((leaf a 8) ((((leaf h 1) (leaf g 1) (h g) 2) ((leaf f 1) (leaf e 1) (f e) 2) (h g f e) 4) (((leaf d 1) (leaf c 1) (d c) 2) (leaf q 3) (d c q) 5) (h g f e d c q) 9) (a h g f e d c q) 17)
+
   
 
 
