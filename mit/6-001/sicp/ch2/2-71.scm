@@ -5,3 +5,4 @@ Exercise 2.71.  Suppose we have a Huffman tree for an alphabet of n symbols, and
 ------------------------------------------------------------
 
 ;;; Trees drawn seperately. The most frequent symbol requires 1 bit, the least frequent requires n-1.
+

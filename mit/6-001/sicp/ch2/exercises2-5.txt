@@ -1,0 +1,377 @@
+###2.77###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.77.  Louis Reasoner tries to evaluate the expression (magnitude z) where z is the object shown in figure 2.24. To his surprise, instead of the answer 5 he gets an error message from apply-generic, saying there is no method for the operation magnitude on the types (complex). He shows this interaction to Alyssa P. Hacker, who says ``The problem is that the complex-number selectors were never defined for complex numbers, just for polar and rectangular numbers. All you have to do to make this work is add the following to the complex package:''
+
+(put 'real-part '(complex) real-part)
+(put 'imag-part '(complex) imag-part)
+(put 'magnitude '(complex) magnitude)
+(put 'angle '(complex) angle)
+
+Describe in detail why this works. As an example, trace through all the procedures called in evaluating the expression (magnitude z) where z is the object shown in figure 2.24. In particular, how many times is apply-generic invoked? What procedure is dispatched to in each case?
+-----------------------------------------------------------------------------------------------------------------
+
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+          (apply proc (map contents args))
+          (error
+            "No method for these types -- APPLY-GENERIC"
+            (list op type-tags))))))
+
+(put 'real-part '(complex) real-part)
+(put 'imag-part '(complex) imag-part)
+(put 'magnitude '(complex) magnitude)
+(put 'angle '(complex) angle)
+
+(magnitude z)
+
+(apply-generic 'magnitude z)
+
+(apply-generic 'magnitude . z)
+
+(let ((type-tags ('(complex))))
+    (let ((proc (get 'magnitude '(complex)))) ;; This returns magnitude
+      (if proc
+          (apply proc ('rectangular . (3 . 4)))
+          (error
+            "No method for these types -- APPLY-GENERIC"
+            (list op type-tags))))))
+
+(magnitude ('rectangular . (3 . 4)))
+
+(apply-generic 'magnitude . ('rectangular . (3 . 4)))
+
+(let ((type-tags ('rectangular))))
+  (let ((proc (get 'magnitude ('rectangular)))) ;; This time the procedure will take rectangular and apply the value stored in our table by magnitude
+    (if proc
+	(apply proc (3 . 4)))) ;; So now we go to the scope of the rectangle magnitude function
+
+;; within rectangle package
+(magnitude (3.4))
+(sqrt (+ (square (real-part (3 . 4)))
+	 (square (imag-part (3 . 4)))))
+
+(sqrt (+ (square 3)
+	 (square 4)))
+
+(sqrt (+ 9
+	 16))
+
+(sqrt 25)
+
+5
+
+
+;; Alyssa's suggestion is correct. The reason that this works is because every call to (apply-generic) strips off a type-tag. Thus, but having an
+;; operation tagged 'magnitude with the type ('complex), the procedure simply strips off the ('complex) tag, on the assumption that a tag under
+;; will indicate whether the data is stored as ('rectangular) or ('polar). The 'magnitude function stored in our put table under the type ('complex)
+;; merely passes the function downwards and allows the remaining tags to funnel the data towards the correct procedures. Very interesting concept.
+
+;; By the way, apply-generic was called twice, in response to the prompt.
+
+###2.78###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.78.  The internal procedures in the scheme-number package are essentially nothing more than calls to the primitive procedures +, -, etc. It was not possible to use the primitives of the language directly because our type-tag system requires that each data object have a type attached to it. In fact, however, all Lisp implementations do have a type system, which they use internally. Primitive predicates such as symbol? and number? determine whether data objects have particular types. Modify the definitions of type-tag, contents, and attach-tag from section 2.4.2 so that our generic system takes advantage of Scheme's internal type system. That is to say, the system should work as before except that ordinary numbers should be represented simply as Scheme numbers rather than as pairs whose car is the symbol scheme-number.
+-----------------------------------------------------------------------------------------------------------------
+
+(define (attach-tag type-tag contents)
+  (if (number? contents)
+      contents
+      (cons type-tag contents)))
+(define (type-tag datum)
+  (cond ((number? datum) 'scheme-number)
+	((pair? datum) (car datum))
+	(else (error "Bad tagged datum -- TYPE-TAG" datum))))
+(define (contents datum)
+  (cond ((number? datum) datum)
+	((pair? datum) (cdr datum))
+	(else (error "Bad tagged datum -- CONTENTS" datum))))
+
+###2.79###
+PROMPT:
+;; Borrowed from Eli Bendersky;;;;;;;;;;;;;;;;;;;
+(define *op-table* (make-hash-table equal?))
+(define (put op type proc)
+  (hash-table/put! *op-table* (list op type) proc))
+(define (get op type)
+  (hash-table/get *op-table* (list op type) false))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (add x y) (apply-generic 'add x y))
+(define (sub x y) (apply-generic 'sub x y))
+(define (mul x y) (apply-generic 'mul x y))
+(define (div x y) (apply-generic 'div x y))
+
+(define (install-scheme-number-package)
+  (define (tag x)
+    (attach-tag 'scheme-number x))    
+  (put 'add '(scheme-number scheme-number)
+       (lambda (x y) (tag (+ x y))))
+  (put 'sub '(scheme-number scheme-number)
+       (lambda (x y) (tag (- x y))))
+  (put 'mul '(scheme-number scheme-number)
+       (lambda (x y) (tag (* x y))))
+  (put 'div '(scheme-number scheme-number)
+       (lambda (x y) (tag (/ x y))))
+  (put 'equ '(scheme-number scheme-number) (lambda (x y) (= x y)))
+  (put 'make 'scheme-number
+       (lambda (x) (tag x)))
+  'done)
+(define (install-rational-package)
+  ;; internal procedures
+  (define (numer x) (car x))
+  (define (denom x) (cdr x))
+  (define (equal x y) (and (= (numer x) (numer y))
+			   (= (denom x) (denom y))))
+  (define (make-rat n d)
+    (let ((g (gcd n d)))
+      (cons (/ n g) (/ d g))))
+  (define (add-rat x y)
+    (make-rat (+ (* (numer x) (denom y))
+                 (* (numer y) (denom x)))
+              (* (denom x) (denom y))))
+  (define (sub-rat x y)
+    (make-rat (- (* (numer x) (denom y))
+                 (* (numer y) (denom x)))
+              (* (denom x) (denom y))))
+  (define (mul-rat x y)
+    (make-rat (* (numer x) (numer y))
+              (* (denom x) (denom y))))
+  (define (div-rat x y)
+    (make-rat (* (numer x) (denom y))
+              (* (denom x) (numer y))))
+  ;; interface to rest of the system
+  (define (tag x) (attach-tag 'rational x))
+  (put 'add '(rational rational)
+       (lambda (x y) (tag (add-rat x y))))
+  (put 'sub '(rational rational)
+       (lambda (x y) (tag (sub-rat x y))))
+  (put 'mul '(rational rational)
+       (lambda (x y) (tag (mul-rat x y))))
+  (put 'div '(rational rational)
+       (lambda (x y) (tag (div-rat x y))))
+  (put 'equ '(rational rational) equal)
+  (put 'make 'rational
+       (lambda (n d) (tag (make-rat n d))))
+  'done)
+(define (make-rational n d)
+  ((get 'make 'rational) n d))
+
+(define (install-complex-package)
+  ;; imported procedures from rectangular and polar packages
+  (define (make-from-real-imag x y)
+    ((get 'make-from-real-imag 'rectangular) x y))
+  (define (make-from-mag-ang r a)
+    ((get 'make-from-mag-ang 'polar) r a))
+  ;; internal procedures
+  (define (add-complex z1 z2)
+    (make-from-real-imag (+ (real-part z1) (real-part z2))
+                         (+ (imag-part z1) (imag-part z2))))
+  (define (sub-complex z1 z2)
+    (make-from-real-imag (- (real-part z1) (real-part z2))
+                         (- (imag-part z1) (imag-part z2))))
+  (define (mul-complex z1 z2)
+    (make-from-mag-ang (* (magnitude z1) (magnitude z2))
+                       (+ (angle z1) (angle z2))))
+  (define (div-complex z1 z2)
+    (make-from-mag-ang (/ (magnitude z1) (magnitude z2))
+                       (- (angle z1) (angle z2))))
+  ;; interface to rest of the system
+  (define (tag z) (attach-tag 'complex z))
+  (put 'add '(complex complex)
+       (lambda (z1 z2) (tag (add-complex z1 z2))))
+  (put 'sub '(complex complex)
+       (lambda (z1 z2) (tag (sub-complex z1 z2))))
+  (put 'mul '(complex complex)
+       (lambda (z1 z2) (tag (mul-complex z1 z2))))
+  (put 'div '(complex complex)
+       (lambda (z1 z2) (tag (div-complex z1 z2))))
+  (put 'make-from-real-imag 'complex
+       (lambda (x y) (tag (make-from-real-imag x y))))
+  (put 'make-from-mag-ang 'complex
+       (lambda (r a) (tag (make-from-mag-ang r a))))
+  (put 'equ '(complex complex) equ?)
+  'done)
+
+
+(define (make-complex-from-real-imag x y)
+  ((get 'make-from-real-imag 'complex) x y))
+(define (make-complex-from-mag-ang r a)
+  ((get 'make-from-mag-ang 'complex) r a))
+
+
+
+(define (install-rectangular-package)
+  ;; internal procedures
+  (define (real-part z) (car z))
+  (define (imag-part z) (cdr z))
+  (define (equal x y) (and (= (real-part x) (real-part y))
+			   (= (imag-part x) (imag-part y))))
+  (define (make-from-real-imag x y) (cons x y))
+  (define (magnitude z)
+    (sqrt (+ (square (real-part z))
+             (square (imag-part z)))))
+  (define (angle z)
+    (atan (imag-part z) (real-part z)))
+  (define (make-from-mag-ang r a) 
+    (cons (* r (cos a)) (* r (sin a))))
+  ;; interface to the rest of the system
+  (define (tag x) (attach-tag 'rectangular x))
+  (put 'real-part '(rectangular) real-part)
+  (put 'imag-part '(rectangular) imag-part)
+  (put 'magnitude '(rectangular) magnitude)
+  (put 'angle '(rectangular) angle)
+  (put 'make-from-real-imag 'rectangular 
+       (lambda (x y) (tag (make-from-real-imag x y))))
+  (put 'make-from-mag-ang 'rectangular 
+       (lambda (r a) (tag (make-from-mag-ang r a))))
+  (put 'equ '(rectangular rectangular) equal)
+  'done)
+
+(define (install-polar-package)
+  ;; internal procedures
+  (define (magnitude z) (car z))
+  (define (angle z) (cdr z))
+  (define (equal x y) (and (= (magnitude x) (magnitude y))
+			   (= (angle x) (angle y))))
+  (define (make-from-mag-ang r a) (cons r a))
+  (define (real-part z)
+    (* (magnitude z) (cos (angle z))))
+  (define (imag-part z)
+    (* (magnitude z) (sin (angle z))))
+  (define (make-from-real-imag x y) 
+    (cons (sqrt (+ (square x) (square y)))
+          (atan y x)))
+  ;; interface to the rest of the system
+  (define (tag x) (attach-tag 'polar x))
+  (put 'real-part '(polar) real-part)
+  (put 'imag-part '(polar) imag-part)
+  (put 'magnitude '(polar) magnitude)
+  (put 'angle '(polar) angle)
+  (put 'make-from-real-imag 'polar
+       (lambda (x y) (tag (make-from-real-imag x y))))
+  (put 'make-from-mag-ang 'polar 
+       (lambda (r a) (tag (make-from-mag-ang r a))))
+  (put 'equ '(polar polar) equal)
+  'done)
+
+(define (install-packages)
+  (install-scheme-number-package)
+  (install-rational-package)
+  (install-complex-package)
+  (install-rectangular-package)
+  (install-polar-package))
+
+(install-packages)
+
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+          (apply proc (map contents args))
+          (error
+            "No method for these types -- APPLY-GENERIC"
+            (list op type-tags))))))
+
+(define (attach-tag type-tag contents)
+  (if (number? contents)
+      contents
+      (cons type-tag contents)))
+(define (type-tag datum)
+  (cond ((number? datum) 'scheme-number)
+	((pair? datum) (car datum))
+	(else (error "Bad tagged datum -- TYPE-TAG" datum))))
+(define (contents datum)
+  (cond ((number? datum) datum)
+	((pair? datum) (cdr datum))
+	(else (error "Bad tagged datum -- CONTENTS" datum))))
+
+(define (equ? x y)
+  (apply-generic 'equ x y))
+
+(equ? 1 2)
+;Value: #f
+(equ? 1 1)
+;Value: #t
+(eq? (make-rational 1 2)
+     (make-rational 2 3))
+;Value: #f
+(equ? (make-complex-from-real-imag 1 2)
+      (make-complex-from-real-imag 1 2))
+;Value: #t
+
+###2.81###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 2.81.  Louis Reasoner has noticed that apply-generic may try to coerce the arguments to each other's type even if they already have the same type. Therefore, he reasons, we need to put procedures in the coercion table to "coerce" arguments of each type to their own type. For example, in addition to the scheme-number->complex coercion shown above, he would do:
+
+(define (scheme-number->scheme-number n) n)
+(define (complex->complex z) z)
+(put-coercion 'scheme-number 'scheme-number
+              scheme-number->scheme-number)
+(put-coercion 'complex 'complex complex->complex)
+
+a. With Louis's coercion procedures installed, what happens if apply-generic is called with two arguments of type scheme-number or two arguments of type complex for an operation that is not found in the table for those types? For example, assume that we've defined a generic exponentiation operation:
+
+(define (exp x y) (apply-generic 'exp x y))
+
+and have put a procedure for exponentiation in the Scheme-number package but not in any other package:
+
+;; following added to Scheme-number package
+(put 'exp '(scheme-number scheme-number)
+     (lambda (x y) (tag (expt x y)))) ; using primitive expt
+
+What happens if we call exp with two complex numbers as arguments?
+
+b. Is Louis correct that something had to be done about coercion with arguments of the same type, or does apply-generic work correctly as is?
+
+c. Modify apply-generic so that it doesn't try coercion if the two arguments have the same type.
+-----------------------------------------------------------------------------------------------------------------
+
+;; (a) Louis has created an infinite loop. apply-generic will fail to find the function in the regular hash table, and attempt a lookup in the
+;; coercion table. It will find the coercion from complex to complex, and will apply the coercion, which is just returing the same object.
+;; The procedure will then make a recursive call to apply generic with the "coerced" data type, which will just repeat the same process over and
+;; over, ad infinitum. It is also interesting to note that only the first argument will be coerced, every time through the loop, because
+;; that comes first in the cond statement.
+
+;; (b) The procedure works as it is. If no coercion is found between the same type (which it shouldn't be), then the procedure raises an error.
+;; this is the desired behavior, because if the function wasn't found for data of the same type, then a coercion would not be appropriate, and
+;; an error should be raised. The only thing missing from this procedure is a check to skip coercion if the objects are the same type, because
+;; it is inefficient to make the checks when we know that nothing should be done.
+
+;; (c) 
+
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+          (apply proc (map contents args))
+          (if (= (length args) 2)
+              (let ((type1 (car type-tags))
+                    (type2 (cadr type-tags))
+                    (a1 (car args))
+                    (a2 (cadr args)))
+		(if (eq? type1 type2)
+		    (error "No method for these types" (list type1 type2))
+		    (let ((t1->t2 (get-coercion type1 type2))
+			  (t2->t1 (get-coercion type2 type1)))
+		      (cond (t1->t2
+			     (apply-generic op (t1->t2 a1) a2))
+			    (t2->t1
+			     (apply-generic op a1 (t2->t1 a2)))
+			    (else
+			     (error "No method for these types"
+				    (list op type-tags)))))))
+	      (error "No method for these types"
+		     (list op type-tags)))))))
+
+
+
+
+
+
+
+

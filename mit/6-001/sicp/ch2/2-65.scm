@@ -117,3 +117,8 @@ Exercise 2.65.  Use the results of exercises 2.63 and  2.64 to give (n) implemen
 ;;; once, and list->tree once.
 
 ;;; all of these algorithms are seprately n complexity, so when we add them we have n + n + n + n = 4n ~ n
+
+
+
+
+
