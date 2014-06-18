@@ -131,9 +131,12 @@
   ;; interface to system
 
   (put 'add '(polynomial polynomial) (lambda (p1 p2) (tag (add-poly p1 p2))))
-  (put 'sub '(polynomial polynomial) (lambda (p1 p2) (tag (add-poly p1 (negate p2)))))
+  (put 'sub '(polynomial polynomial)
+       (lambda (p1 p2)
+	 (tag (add-poly p1
+			(make-poly (variable p2)
+				   (negate (term-list p2)))))))
   (put 'mul '(polynomial polynomial) (lambda (p1 p2)
-				       (trace mul-poly)
 				       (tag (mul-poly p1 p2))))
   (put 'make 'polynomial (lambda (var terms) (tag (make-poly var terms))))
   (put 'negate '(polynomial)
@@ -158,28 +161,30 @@
     terms)
 
   (define (dense-repr terms)
-    (define (first-term-order terms)
-      (if (empty-termlist? terms)
-	  0
-	  (order (first-term terms))))
-    (define (dense-iter terms previous-order)
-      (let ((current-order (first-term-order terms))
-	    (current-term (first-term terms)))
-	(cond ((and (= (- previous-order 1) current-order) (= current-order 0))
-	       (the-empty-termlist))
-	      ((> (- previous-order 1) current-order)
-	       (cons 0 (dense-iter terms (- previous-order 1))))
-	      ((= (- previous-order 1) current-order)
-	       (cons (coeff current-term) (dense-iter (rest-terms terms) (order current-term)))))))
-	      
-
-    (dense-iter terms (max-order terms)))
+    (define (dense-iter terms prev-order)
+      (cond ((and (empty-termlist? terms) (= prev-order 0))
+	     (the-empty-termlist))
+	    ((and (empty-termlist? terms) (> prev-order 0))
+	     (cons 0 (dense-iter terms (- prev-order 1))))
+	    (else
+	     (let ((current-term (first-term terms))
+		   (current-order (order (first-term terms))))
+	       (cond ((= (- prev-order 1) current-order)
+		      (cons (coeff current-term)
+			    (dense-iter (rest-terms terms)
+					(order current-term))))
+		     (else
+		      (cons 0 (dense-iter terms (- prev-order 1)))))))))
+    (dense-iter terms (+ (max-order terms) 1)))
 
   
   (define (max-order terms) (order (first-term terms)))
   (define (cardinality terms) (length-termlist terms))
   (define (neg terms)
-    (map (lambda (term) (negate (coeff term))) terms))
+    (map (lambda (term)
+	   (make-term (order term)
+		      (negate (coeff term))))
+	 terms))
   (define (tag terms) (attach-tag 'sparse terms))
   ;;; Interface to outside
 
@@ -188,17 +193,15 @@
   (put 'first-term '(sparse) (lambda (terms) (first-term terms)))
   (put 'rest-terms '(sparse) (lambda (terms) (tag (rest-terms terms))))
   (put 'sparse-repr '(sparse) (lambda (terms)
-				(trace sparse-repr)
 				(tag (sparse-repr terms))))
   (put 'dense-repr '(sparse) (lambda (terms)
-			       (trace dense-repr)
-			       (attach-tag 'dense (dense-repr terms))))
+				 (attach-tag 'dense (dense-repr terms))))
+
   (put 'adjoin-term 'sparse (lambda (term terms) (tag (adjoin-term term terms))))
   (put 'cardinality '(sparse) (lambda (terms) (cardinality terms)))
   (put 'max-order '(sparse) (lambda (terms) (max-order terms)))
   (put 'negate '(sparse) (lambda (p) (tag (neg p))))
   'done)
-  
 
 (define (install-dense-package)
   (define (zero-term? term) (= 0 (coeff term)))
@@ -239,9 +242,9 @@
 				 (max-order terms)
 				 (order term)))))
   (define (sparse-repr terms)
-    (cond ((empty-term-list? terms) (the-empty-termlist))
-	  ((zero-term? (first-term terms)) terms)
-	  (else (cons (first-term terms) (sparse-iter (rest-terms terms))))))
+    (cond ((empty-termlist? terms) (the-empty-termlist))
+	  ((zero-term? (first-term terms)) (sparse-repr (rest-terms terms)))
+	  (else (cons (first-term terms) (sparse-repr (rest-terms terms))))))
   (define (neg terms)
     (map (lambda (x) (negate x)) terms))
   (define (tag terms)
@@ -261,20 +264,6 @@
   (put 'negate '(dense) (lambda (terms) (tag (neg terms))))
   'done)
 
-
-  
-
-
-(mul (make-poly 'x '(sparse (100 4)))
-     (make-poly 'x '(sparse (5 3) (4 2) (1 1))))
-
-(mul (make-poly 'x '(dense 5 0))
-     (make-poly 'x '(dense 30)))
-
-(sparse-repr (make-poly 'x '(dense 5 0)))
-
-
-
 (define (install-packages)
   (install-scheme-number-package)
   (install-rational-package)
@@ -288,13 +277,22 @@
 
 (install-packages)
 
-(trace install-dense-package)
-
-(define (test)
-  (define (stuff)
-    1)
-  (trace stuff)
-  (stuff))
+(mul (make-poly 'x '(sparse (100 4)))
+     (make-poly 'x '(sparse (5 3) (4 2) (1 1))))
 
 
-(test)
+(let ()
+  (install-packages)
+  (negate '(sparse (2 5) (4 5))))
+
+(sparse-repr '(dense 1 0 0 2))
+
+(sub (make-poly 'x '(dense 5 7 5 3))
+     (make-poly 'x '(sparse (5 2) (3 1))))
+
+
+(negate '(sparse (5 2) (3 5)))
+
+(get 'negate '(sparse))
+
+((get 'negate 'sparse) '((1 4) (0 3)))
