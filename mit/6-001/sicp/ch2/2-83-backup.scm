@@ -1,13 +1,18 @@
-###2.80###
+(define (load-lib os)
+  (if (string=? os "w")
+      (cd "c:/school/mit/6-001/projects/project2")
+      (cd "~/Documents/school/mit/6-001/projects/project2"))
+  (load "../../lib.scm"))
+
+
+(load-lib "l")
+
+
+###2.83###
 PROMPT:
 -----------------------------------------------------------------------------------------------------------------
-Exercise 2.80.  Define a generic predicate =zero? that tests if its argument is zero, and install it in the generic arithmetic package. This operation should work for ordinary numbers, rational numbers, and complex numbers.
+Exercise 2.83.  Suppose you are designing a generic arithmetic system for dealing with the tower of types shown in figure 2.25: integer, rational, real, complex. For each type (except complex), design a procedure that raises objects of that type one level in the tower. Show how to install a generic raise operation that will work for each type (except complex).
 -----------------------------------------------------------------------------------------------------------------
-(define *op-table* (make-hash-table equal?))
-(define (put op type proc)
-  (hash-table/put! *op-table* (list op type) proc))
-(define (get op type)
-  (hash-table/get *op-table* (list op type) false))
 
 (define (add x y) (apply-generic 'add x y))
 (define (sub x y) (apply-generic 'sub x y))
@@ -51,6 +56,9 @@ Exercise 2.80.  Define a generic predicate =zero? that tests if its argument is 
   (put 'zero '(scheme-number) (lambda (x) (= x 0)))
   (put 'make 'scheme-number
        (lambda (x) (tag x)))
+  (put-coercion 'scheme-number
+		'rational
+		(lambda (x) (make-rational x 1)))
   'done)
 
 (define (install-rational-package)
@@ -91,9 +99,38 @@ Exercise 2.80.  Define a generic predicate =zero? that tests if its argument is 
        
   (put 'make 'rational
        (lambda (n d) (tag (make-rat n d))))
+  (put-coercion 'rational
+		'real
+		(lambda (x) (make-real (/ (numer x) (denom x)))))
   'done)
+
 (define (make-rational n d)
   ((get 'make 'rational) n d))
+
+(define (install-real-package)
+  (define (tag z)
+    (attach-tag 'real))
+  (define (add-real x y)
+    (+ x y))
+  (define (sub-real x y)
+    (- x y))
+  (define (mul-real x y)
+    (* x y))
+  (define (div-real x y)
+    (/ x y))
+  (define (make-real x)
+    x)
+  (put 'add '(real real) (lambda (x y) (tag (add-real x y))))
+  (put 'sub '(real real) (lambda (x y) (tag (sub-real x y))))
+  (put 'mul '(real real) (lambda (x y) (tag (mul-real x y))))
+  (put 'div '(real real) (lambda (x y) (tag (div-real x y))))
+  (put 'equ '(real real) (lambda (x y) (= x y)))
+  (put 'zero '(real real) (lambda (x) (= x 0)))
+  (put 'make 'real (lambda (x) (tag (make-real x)))))
+(define (make-real x)
+  ((get 'make 'real) x))
+	   
+
 
 (define (install-complex-package)
   ;; imported procedures from rectangular and polar packages
@@ -211,15 +248,17 @@ Exercise 2.80.  Define a generic predicate =zero? that tests if its argument is 
 (install-packages)
 
 
-(=zero? 0)
-;Value: #t
 
-(=zero? (make-rational 0 1))
-;Value: #t
+(define (find-one-up type)
+  (let ((result (memq type (get-tower-hierarchy))))
+    (if result
+	(car result)
+	false)))
 
-(=zero? (make-complex-from-real-imag 0 0))
-;Value: #t
+(define (get-tower-hierarchy)
+  (hash-table/put! *coercion-types* 'hierarchy '()))
 
-(=zero? (make-complex-from-mag-ang 0 1))
-;Value: #t
+(define (raise obj)
+  (apply-generic raise obj))
 
+(raise 1)
