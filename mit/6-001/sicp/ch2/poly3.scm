@@ -38,7 +38,8 @@
 		 (> x-length y-length)))))
 (define (get-ordered-variables poly)
   (order-vars (remove-duplicate-vars (find-vars poly))))
-
+(define (expand-poly p)
+  (apply-generic 'expand p))
 
 (define (variable-hierarchy)
   (list 'w 'z 'y 'x))
@@ -47,8 +48,53 @@
 (define (make-poly var terms)
   ((get 'make 'polynomial) var terms))
 
+(begin
+  (install-packages)
+  (expand-poly my-first-poly))
+
+
+
 
 (define (install-polynomial-package)
+
+  (define (adjoin-termlists L1 L2)
+    (cond ((empty-termlist? L1) (contents L2))
+	  ((empty-termlist? L2) (contents L1))
+	  (else
+	   (let ((t1 (first-term L1))
+		 (t2 (first-term L2)))
+	     (cond ((> (order t1) (order t2))
+		    (adjoin-term t1
+				 (adjoin-termlists (rest-terms L1)
+						   L2)))
+		   ((< (order t1) (order t2))
+		    (adjoin-term t2
+				 (adjoin-termlists L1
+						   (rest-terms L2))))
+		   (else (adjoin-term t1
+				      (adjoin-term t2
+						   (adjoin-termlists L1
+								     L2)))))))))
+  (define (expand p)
+    (let ((terms (term-list p)))
+      (let ((result (expand-termlist terms)))
+	(make-poly (variable p)
+		   (expand-result terms)))))
+  (trace expand)
+  (define (expand-termlist terms)
+    (if (empty-termlist? terms)
+	(the-empty-termlist (type-tag terms))
+	(let ((first (first-term terms)))
+	  (if (poly? (coeff first))
+	      (cons (make-term (order first) (expand-poly (coeff first)))
+		    (expand-termlist (rest-terms terms)))
+	      (expand-termlist (rest-terms terms))))))
+  (define (expand-result terms)
+    (if (empty-termlist? terms)
+	(the-empty-termlist (type-tag terms))
+	(adjoin-termlists (expand-term (first-term (contents terms)))
+			  (expand-result (rest-terms terms)))))
+
   (define (expand-term term)
     (define (expand-term-iter lower-terms built-terms)
       (if (empty-termlist? lower-terms)
@@ -64,23 +110,7 @@
 
 ;;; DEFINITELY CHECK THIS PREVIOUS ALGORITHM BEFORE MOVING AHEAD TOO FAR
 
-  (define (expand-termlist terms)
-    (if (empty-termlist? terms)
-	(the-empty-termlist (type-tag terms))
-	(cons (expand (coeff (first-term terms)))
-	      (expand-termlist (rest-terms terms)))))
-  (define (expand-result terms)
-    (if (empty-termlist? terms)
-	(the-empty-termlist (type-tag terms))
-	(
   
-  (define (expand p)
-    (if (not (poly? p))
-	p
-	(let ((terms (term-list p)))
-	  (let ((result (expand-termlist terms)))
-	    (make-poly (variable p)
-		       
 	    
 	     
   (define (find-v p)
@@ -213,10 +243,12 @@
   (put 'sparse-repr '(polynomial) (lambda (p) (sparse-repr (term-list p))))
   (put 'dense-repr '(polynomial) (lambda (p) (dense-repr (term-list p))))
   (put 'find-vars '(polynomial) (lambda (p) (find-v p)))
+  (put 'expand '(polynomial) (lambda (p) (tag (expand p))))
   'done)
 
 (define (install-sparse-package)
   ;; Operations on sparse term-lists
+
   (define (find-v terms)
       (if (empty-termlist? terms)
 	  (the-empty-termlist)
@@ -363,23 +395,13 @@
   (install-dense-package)
   (install-sparse-package))
 
-(begin
-  (install-packages)
-  (get-ordered-variables my-first-poly))
 
 (define my-first-poly (make-poly 'x
 				 (list 'sparse
 				       (list 3 (make-poly 'y (list 'sparse
 								   (list 2 (make-poly 'z (list 'sparse
-											       (list 4 2))))
+											       (list 'dense 4 2))))
 								   (list 1 (make-poly 'z (list 'sparse
-											       (list 2 1))))))))))
-
-my-first-poly
-
-(add my-first-poly my-first-poly)
-		      
-
-
+											       (list 'dense 2 1))))))))))
 
 
