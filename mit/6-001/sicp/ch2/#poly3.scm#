@@ -1,23 +1,3 @@
-;; ALTERNATE DENSE-REPR IF NEEDED
-;;  (define (dense-repr terms)
-;;    (accumulate (lambda (x y)
-;;		  (if (the-empty-termlist? y)
-;;		      (cons (coeff x) (pad-zeros (order x) 0))
-;;		      (append (cons (coeff x) (pad-zeros (order x) (order y-term))) y)))
-;;		(the-empty-termlist)
-;;		terms))
-
-
-
-;; terms needed for each package:
-
-;; FIRST-TERM, REST-TERMS, EMPTY-TERMLIST?, THE-EMPTY-TERMLIST, ADJOIN-TERM, MAX-ORDER
-;; CARDINALITY, DENSE-REPR, SPARSE-REPR, NEGATE, POLY-ZER0
-
-;; DECIDE WHETHER MAPS AND ACCUMULATES ARE A GOOD IDEA, OR WHETHER IT IS BETTER TO JUST USE
-;; SELECTORS AND RECURSE (SEE POLY ZERO FOR EXAMPLE), THIS MIGHT BE POSSIBLE TO INSTALL
-;; IN POLYNOMIAL PACKAGE, SEE IF THE SAME IS TRUE FOR NEGATE THROUGH SELECTORS
-
 (define (first-term terms)
   (apply-generic 'first-term terms))
 (define (rest-terms terms)
@@ -41,23 +21,18 @@
   (apply-generic 'sparse-repr terms))
 (define (pad-zeros high low)
   (make-list (- high low) 0))
+(define (find-vars poly)
+  (apply-generic 'find-vars poly))
+(define (poly? x)
+  (and (pair? x) (eq? (type-tag x) 'polynomial)))
 
 (define (make-poly var terms)
   ((get 'make 'polynomial) var terms))
 
 
 (define (install-polynomial-package)
-
-  ;;; REDEFINE THESE TERMS SO THAT THEY MAKE A CHOICE OF WHICH REPRESENTATION TO ADJOIN-TERM TO
-  ;;; IN OTHER WORDS, DEFINE A PREDICATE TO DETERMINE WHICH REPRESENTATION IS BEST
-  ;;; THIS COULD BE SOLVED BY ONLY MAKING RESULTS IN SPARSE FORM, BUT THEN CHECKING TO SEE
-  ;;; IF THE POLYNOMIAL IS "DENSE" AFTER THE OPERATION HAS COMPLETED. OR VICE VERSA
-
-
-  ;;; Need generic procedures max-order, num-terms, dense-repr, sparse-repr
-
-  ;;; Need local poly-zero, neg
-
+  (define (find-v p)
+    (append (list (variable p)) (find-vars (term-list p))))
   (define (poly-zero? p)
     (define (zero-iter terms)
       (if (empty-termlist? terms)
@@ -164,8 +139,10 @@
   (define (same-variable? v1 v2)
     (and (variable? v1) (variable? v2) (eq? v1 v2)))
   (define (tag p) (attach-tag 'polynomial p))
+
   ;; interface to system
-  (trace add-terms)
+
+
   (put 'add '(polynomial polynomial) (lambda (p1 p2) (tag (add-poly p1 p2))))
   (put 'sub '(polynomial polynomial)
        (lambda (p1 p2)
@@ -180,13 +157,21 @@
   (put 'make 'polynomial (lambda (var terms) (tag (make-poly var terms))))
   (put 'negate '(polynomial)
        (lambda (p) (tag (make-poly (variable p) (negate (term-list p))))))
-  (put 'zero '(polynomial) (lambda (p) (tag (poly-zero? p))))
+  (put 'zero '(polynomial) (lambda (p) (poly-zero? p)))
   (put 'sparse-repr '(polynomial) (lambda (p) (sparse-repr (term-list p))))
   (put 'dense-repr '(polynomial) (lambda (p) (dense-repr (term-list p))))
+  (put 'find-vars '(polynomial) (lambda (p) (find-v p)))
   'done)
-  
+
 (define (install-sparse-package)
   ;; Operations on sparse term-lists
+  (define (find-v terms)
+      (if (empty-termlist? terms)
+	  (the-empty-termlist)
+	  (let ((first (first-term terms)))	  
+	    (cond ((poly? (coeff first)) (append (find-vars (coeff first)) (find-v (rest-terms terms))))
+		  (else (find-v (rest-terms terms)))))))	  
+
   (define (adjoin-term term term-list)
     (if (=zero? (coeff term))
 	term-list
@@ -216,7 +201,6 @@
 		      (cons 0 (dense-iter terms (- prev-order 1)))))))))
     (dense-iter terms (+ (max-order terms) 1)))
 
-  
   (define (max-order terms)
     (if (empty-termlist? terms)
 	0
@@ -229,6 +213,7 @@
 	 terms))
   (define (tag terms) (attach-tag 'sparse terms))
   ;;; Interface to outside
+
 
   (put 'the-empty-termlist 'sparse (lambda () (tag (the-empty-termlist))))
   (put 'empty-termlist? '(sparse) (lambda (terms) (empty-termlist? terms)))
@@ -243,9 +228,17 @@
   (put 'cardinality '(sparse) (lambda (terms) (cardinality terms)))
   (put 'max-order '(sparse) (lambda (terms) (max-order terms)))
   (put 'negate '(sparse) (lambda (p) (tag (neg p))))
+  (put 'find-vars '(sparse) (lambda (terms) (find-v terms)))
   'done)
 
 (define (install-dense-package)
+  (define (find-v terms)
+      (if (empty-termlist? terms)
+	  (the-empty-termlist)
+	  (let ((first (first-term terms)))	  
+	    (cond ((poly? (coeff first)) (append (find-vars (coeff first)) (find-v (rest-terms terms))))
+		  (else (find-v (rest-terms terms)))))))
+
   (define (zero-term? term) (= 0 (coeff term)))
   (define (max-order terms) (- (length terms) 1))
   (define (cardinality terms)
@@ -304,6 +297,7 @@
   (put 'cardinality '(dense) (lambda (terms) (cardinality terms)))
   (put 'max-order '(dense) (lambda (terms) (max-order terms)))
   (put 'negate '(dense) (lambda (terms) (tag (neg terms))))
+  (put 'find-vars '(dense) (lambda (terms) (find-v terms)))
   'done)
 
 (define (install-packages)
@@ -319,7 +313,7 @@
 
 (begin
   (install-packages)
-  (add my-first-poly my-first-poly))
+  (find-vars my-first-poly))
 
 (define my-first-poly (make-poly 'x (list 'sparse (list 3 (make-poly 'y (list 'sparse (list 1 (make-poly 'z (list 'sparse (list 2 1))))))))))
 
@@ -327,14 +321,6 @@ my-first-poly
 
 (add my-first-poly my-first-poly)
 		      
-
-
-
-
-
-
-
-
 
 
 
