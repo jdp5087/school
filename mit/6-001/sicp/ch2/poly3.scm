@@ -39,78 +39,149 @@
 (define (get-ordered-variables poly)
   (order-vars (remove-duplicate-vars (find-vars poly))))
 (define (expand-poly p)
-  (apply-generic 'expand p))
+  (if (poly? p)
+      (apply-generic 'expand p)
+      p))
+(define (compress-polynomial p)
+  (apply-generic 'compress-polynomial p))
 
 (define (variable-hierarchy)
   (list 'w 'z 'y 'x))
 
 
-(define (make-poly var terms)
+(define (make-polynomial var terms)
   ((get 'make 'polynomial) var terms))
 
-(begin
-  (install-packages)
-  (expand-poly my-first-poly))
 
+(define (adjoin-termlists L1 L2)
+  (cond ((empty-termlist? L1) L2)
+	((empty-termlist? L2) L1)
+	(else
+	 (let ((t1 (first-term L1))
+	       (t2 (first-term L2)))
+	   (cond ((> (order t1) (order t2))
+		  (adjoin-term t1
+			       (adjoin-termlists (rest-terms L1)
+						 L2)))
+		 ((< (order t1) (order t2))
+		  (adjoin-term t2
+			       (adjoin-termlists L1
+						 (rest-terms L2))))
+		 (else (adjoin-term t1
+				    (adjoin-term t2
+						 (adjoin-termlists (rest-terms L1)
+								   (rest-terms L2))))))))))
 
 
 
 (define (install-polynomial-package)
 
-  (define (adjoin-termlists L1 L2)
-    (cond ((empty-termlist? L1) (contents L2))
-	  ((empty-termlist? L2) (contents L1))
-	  (else
-	   (let ((t1 (first-term L1))
-		 (t2 (first-term L2)))
-	     (cond ((> (order t1) (order t2))
-		    (adjoin-term t1
-				 (adjoin-termlists (rest-terms L1)
-						   L2)))
-		   ((< (order t1) (order t2))
-		    (adjoin-term t2
-				 (adjoin-termlists L1
-						   (rest-terms L2))))
-		   (else (adjoin-term t1
-				      (adjoin-term t2
-						   (adjoin-termlists L1
-								     L2)))))))))
+  (define (in-order? v1 v2)
+    (let ((v1-rank (length (memq v1 (variable-hierarchy))))
+	  (v2-rank (length (memq v2 (variable-hierarchy)))))
+      (> v1-rank v2-rank)))
+
+
+  (define (seperate-expanded-poly p)
+    (let ((top-var (variable p))
+	  (top-terms (term-list p)))
+      (define (sep-iter terms)
+	(if (empty-termlist? terms)
+	    '()
+	    (cons (make-polynomial top-var
+				   (adjoin-term (first-term terms)
+						(the-empty-termlist 'sparse)))
+		  (sep-iter (rest-terms terms)))))
+      (sep-iter top-terms)))
+      
+		   
+
   (define (expand p)
     (let ((terms (term-list p)))
       (let ((result (expand-termlist terms)))
 	(make-poly (variable p)
-		   (expand-result terms)))))
+		   (expand-result result)))))
   (trace expand)
   (define (expand-termlist terms)
     (if (empty-termlist? terms)
-	(the-empty-termlist (type-tag terms))
+	(the-empty-termlist 'sparse)
 	(let ((first (first-term terms)))
 	  (if (poly? (coeff first))
-	      (cons (make-term (order first) (expand-poly (coeff first)))
-		    (expand-termlist (rest-terms terms)))
-	      (expand-termlist (rest-terms terms))))))
+	      (adjoin-term (make-term (order first) (expand-poly (coeff first)))
+			   (expand-termlist (rest-terms terms)))
+	      (adjoin-term first
+			   (expand-termlist (rest-terms terms)))))))
   (define (expand-result terms)
     (if (empty-termlist? terms)
 	(the-empty-termlist (type-tag terms))
-	(adjoin-termlists (expand-term (first-term (contents terms)))
+	(adjoin-termlists (expand-term (first-term terms))
 			  (expand-result (rest-terms terms)))))
 
   (define (expand-term term)
-    (define (expand-term-iter lower-terms built-terms)
+    (define (expand-term-iter lower-terms built-terms lower-var)
       (if (empty-termlist? lower-terms)
 	  built-terms
 	  (let ((first-lower (first-term lower-terms)))
 	    (expand-term-iter (rest-terms lower-terms)
-			      (adjoin-term (make-term (order term) first-lower)
-					   built-terms)))))
+			      (adjoin-term (make-term (order term)
+						      (tag (make-poly lower-var
+								      (adjoin-term first-lower
+										   (the-empty-termlist 'sparse)))))
+					   built-terms)
+					   lower-var))))
     (if (not (poly? (coeff term)))
-	term
-	(let ((lower-terms (term-list (coeff term))))
-	  (expand-term-iter lower-terms (the-empty-termlist 'sparse)))))
+	(adjoin-term term (the-empty-termlist 'sparse))
+	(let ((poly-contents (contents (coeff term))))
+	  (let ((lower-var (variable poly-contents))
+		(lower-terms (term-list poly-contents)))
+	    (expand-term-iter lower-terms (the-empty-termlist 'sparse) lower-var)))))
 
-;;; DEFINITELY CHECK THIS PREVIOUS ALGORITHM BEFORE MOVING AHEAD TOO FAR
+  (define (compress-poly p)
+      (make-poly (variable p) (compress-termlist (term-list p))))
 
-  
+  (define (compress-termlist terms)
+      (compress-terms (compress-coeffs terms)))
+		 
+  (define (compress-coeffs terms)
+    (if (empty-termlist? terms)
+	(the-empty-termlist 'dense)
+	(let ((first (first-term terms)))
+	  (if (poly? (coeff first))
+	      (adjoin-term (make-term (order first)
+				      (compress-polynomial (coeff first)))
+			   (compress-coeffs (rest-terms terms)))
+	      (adjoin-term first (compress-coeffs (rest-terms terms)))))))
+  (define (compress-terms terms)
+    (define (compress-iter first rest)
+      (if (empty-termlist? terms)
+	  (the-empty-termlist 'sparse)
+	  (let ((result (compress-term first rest)))
+	    (if (empty-termlist? (cdr result))
+		(adjoin-term (car result) (cdr result))
+		(adjoin-term (car result)
+			     (compress-iter (first-term (cdr result)
+							(rest-terms (cdr result)))))))))
+    (compress-iter (first-term terms) (rest-terms terms)))
+
+  (define (compress-term first rest)
+    (define (compress-term-iter first rest viable)
+      (if (empty-termlist? rest)
+	  (cons first viable)
+	  (let ((next (first-term rest)))
+	    (if (= (order first) (order next))
+		(compress-term-iter (make-term (order first)
+					       (add (coeff first)
+						    (coeff next)))
+				    (rest-terms rest)
+				    viable)
+		(compress-term-iter first
+				    (rest-terms rest)
+				    (adjoin-term next viable))))))
+    (compress-term-iter first rest (the-empty-termlist 'sparse)))
+	  
+    
+		     
+
 	    
 	     
   (define (find-v p)
@@ -125,14 +196,29 @@
 		false))))
     (zero-iter (term-list p)))
 
+  (define (expanded-poly? terms)
+    (define (expanded-iter terms orders)
+      (if (empty-termlist? terms)
+	  false
+	  (let ((first (first-term terms)))
+	    (if (member (order first) orders)
+		true
+		(expanded-iter (rest-terms terms) (cons (order first) orders))))))
+    (expanded-iter terms '()))
+  (define (compress-poly-if-needed terms)
+    (if (expanded-poly? terms)
+	(compress-termlist terms)
+	terms))
+
   (define (dense-poly? terms)
     (if (<= (max-order terms) (* (cardinality terms) 1.5))
 	true
 	false))
   (define (choose-repr terms)
-    (if (dense-poly? terms)
-	(dense-repr terms)
-	(sparse-repr terms)))
+    (let ((terms (compress-poly-if-needed terms)))
+      (if (dense-poly? terms)
+	  (dense-repr terms)
+	  (sparse-repr terms))))
   (define (add-poly p1 p2)
     (if (same-variable? (variable p1) (variable p2))
 	(let ((added-terms (add-terms (term-list p1)
@@ -244,6 +330,7 @@
   (put 'dense-repr '(polynomial) (lambda (p) (dense-repr (term-list p))))
   (put 'find-vars '(polynomial) (lambda (p) (find-v p)))
   (put 'expand '(polynomial) (lambda (p) (tag (expand p))))
+  (put 'compress-polynomial '(polynomial) (lambda (p) (tag (compress-poly p))))
   'done)
 
 (define (install-sparse-package)
@@ -326,13 +413,13 @@
   (define (zero-term? term) (= 0 (coeff term)))
   (define (max-order terms) (- (length terms) 1))
   (define (cardinality terms)
-    (length (filter (lambda (x) (not (= x 0))) terms)))
+    (length (filter (lambda (x) (not (=zero? x))) terms)))
   (define (the-empty-termlist) '())
   (define (empty-termlist? terms) (null? terms))
   (define (first-term terms)
     (make-term (max-order terms) (car terms)))
   (define (add-term t1 t2)
-    (make-term (order t1) (+ (coeff t1) (coeff t2))))
+    (make-term (order t1) (add (coeff t1) (coeff t2))))
   (define (rest-terms terms) (cdr terms))
   (define (dense-repr terms)
     terms)
@@ -369,6 +456,10 @@
   (define (tag terms)
     (attach-tag 'dense terms))
 
+
+(add '(polynomial x dense 2 4 5 5)
+     '(polynomial x dense 3 4 5 6))
+  
   ;;; Interface to outside
 
   (put 'the-empty-termlist 'dense (lambda () (tag (the-empty-termlist))))
@@ -394,14 +485,58 @@
   (install-polynomial-package)
   (install-dense-package)
   (install-sparse-package))
+(install-packages)
 
 
-(define my-first-poly (make-poly 'x
-				 (list 'sparse
-				       (list 3 (make-poly 'y (list 'sparse
-								   (list 2 (make-poly 'z (list 'sparse
-											       (list 'dense 4 2))))
-								   (list 1 (make-poly 'z (list 'sparse
-											       (list 'dense 2 1))))))))))
+(define test-poly (make-polynomial 'x (list 'sparse
+				      (list 2
+					    (make-poly 'y (list 'sparse
+								(list 2
+								      (make-poly 'z (list 'dense 3 2)))
+								(list 1
+								      (make-poly 'z (list 'dense 4 5)))))))))
+
+test-poly
+
+(begin
+  (install-packages)
+  (add (expand-poly test-poly)
+       (expand-poly test-poly)))
+
+;;; I WOULD GUESS THAT IT IS TRYING TO CHOOSE REPR BUT GETS LOST BECAUSE IT ASSUMES NO DUPLICATE ORDERS ;;;
+  
+(define (view-terms poly)
+  (define (view-iter terms)
+    (if (empty-termlist? terms)
+	'()
+	(begin
+	  (display (first-term terms))
+	  (newline)
+	  (view-iter (rest-terms terms)))))
+	  
+  (let ((terms (cdr (contents poly))))
+    (view-iter terms)))
+    
+;;;; GO TO BOTTOM OF STACKED NESTED POLYS
+;;; CALL/CC
+;;; ITERATE UPWARDS, TESTING THE ORDER OF UPPER/LOWER
+;;; IF OUT OF ORDER, SWITCH AND RETURN TO CALL/CC
+;;; IF THE TOP IS REACHED, RETURN POLY
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
