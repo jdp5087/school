@@ -48,10 +48,8 @@
 (define (variable-hierarchy)
   (list 'w 'z 'y 'x))
 
-
 (define (make-polynomial var terms)
   ((get 'make 'polynomial) var terms))
-
 
 (define (adjoin-termlists L1 L2)
   (cond ((empty-termlist? L1) L2)
@@ -75,33 +73,13 @@
 
 
 (define (install-polynomial-package)
-
-  (define (in-order? v1 v2)
-    (let ((v1-rank (length (memq v1 (variable-hierarchy))))
-	  (v2-rank (length (memq v2 (variable-hierarchy)))))
-      (> v1-rank v2-rank)))
-
-
-  (define (seperate-expanded-poly p)
-    (let ((top-var (variable p))
-	  (top-terms (term-list p)))
-      (define (sep-iter terms)
-	(if (empty-termlist? terms)
-	    '()
-	    (cons (make-polynomial top-var
-				   (adjoin-term (first-term terms)
-						(the-empty-termlist 'sparse)))
-		  (sep-iter (rest-terms terms)))))
-      (sep-iter top-terms)))
-      
-		   
-
+     
   (define (expand p)
     (let ((terms (term-list p)))
       (let ((result (expand-termlist terms)))
 	(make-poly (variable p)
 		   (expand-result result)))))
-  (trace expand)
+
   (define (expand-termlist terms)
     (if (empty-termlist? terms)
 	(the-empty-termlist 'sparse)
@@ -159,8 +137,8 @@
 	    (if (empty-termlist? (cdr result))
 		(adjoin-term (car result) (cdr result))
 		(adjoin-term (car result)
-			     (compress-iter (first-term (cdr result)
-							(rest-terms (cdr result)))))))))
+			     (compress-iter (first-term (cdr result))
+					    (rest-terms (cdr result))))))))
     (compress-iter (first-term terms) (rest-terms terms)))
 
   (define (compress-term first rest)
@@ -170,8 +148,8 @@
 	  (let ((next (first-term rest)))
 	    (if (= (order first) (order next))
 		(compress-term-iter (make-term (order first)
-					       (add (coeff first)
-						    (coeff next)))
+					       (add (coeff first) ;;; IF SAME TYPE AND NOT POLY ADD, IF SAME TYPE AND POLY AND IN SAME VARS ADD, ELSE
+						    (coeff next))) ;;; DON'T DO ANYTHING, ALSO MAKE SURE THAT COMPRESS IS ACTUALLY WORKING RIGHT
 				    (rest-terms rest)
 				    viable)
 		(compress-term-iter first
@@ -179,10 +157,122 @@
 				    (adjoin-term next viable))))))
     (compress-term-iter first rest (the-empty-termlist 'sparse)))
 	  
-    
-		     
 
-	    
+  (define (seperate-expanded-poly p)
+    (let ((top-var (variable p))
+	  (top-terms (term-list p)))
+      (define (sep-iter terms)
+	(if (empty-termlist? terms)
+	    '()
+	    (cons (make-polynomial top-var
+				   (adjoin-term (first-term terms)
+						(the-empty-termlist 'sparse)))
+		  (sep-iter (rest-terms terms)))))
+      (sep-iter top-terms)))
+
+  (define (pad-seperated-poly sp vars)
+    (if (null? sp)
+	'()
+	(cons (pad-poly (car sp) vars)
+	      (pad-seperated-poly (cdr sp) vars))))
+  (define (pad-poly p vars)
+    (let ((poly-vars (find-vars p)))
+      (let ((needed-vars (remove (lambda (x)
+				   (member x poly-vars))
+				 vars)))
+	(if (null? needed-vars)
+	    p
+	    (pad-poly (make-polynomial (car needed-vars)
+				       (adjoin-term (make-term 0 p)
+						    (the-empty-termlist 'sparse)))
+		      vars)))))
+
+
+  (define (in-order? v1 v2)
+    (let ((v1-rank (length (memq v1 (variable-hierarchy))))
+	  (v2-rank (length (memq v2 (variable-hierarchy)))))
+      (< v1-rank v2-rank)))
+
+  (define (order-seperated-poly sp vars)
+    (if (null? sp)
+	'()
+	(cons (order-and-check (car sp) vars)
+	      (order-seperated-poly (cdr sp) vars))))
+
+  (define (order-and-check p vars)
+    (define (same-order? vars1 vars2)
+      (cond ((and (null? vars1) (null? vars2)) true)
+	    ((null? vars1) false)
+	    ((null? vars2) false)
+	    ((eq? (car vars1) (car vars2)) (same-order? (cdr vars1) (cdr vars2)))
+	    (else false)))
+    (if (same-order? (reverse (find-vars p)) vars)
+	p
+	(begin
+;;	  (display (find-vars p))
+;;	  (newline)
+;;	  (display vars)
+;;	  (newline)
+	  (order-and-check (order-poly p vars) vars))))
+
+  (define (order-poly p vars)
+    (let ((top-contents (contents p)))
+      (let ((high-var (variable top-contents))
+	    (high-termlist (term-list top-contents)))
+	(let ((high-order (order (first-term high-termlist)))
+	      (high-coeff (coeff (first-term high-termlist))))
+	  (if (not (poly? high-coeff))
+	      p
+	      (let ((low-contents (contents high-coeff)))
+		(let ((low-var (variable low-contents))
+		      (low-termlist (term-list low-contents)))
+		  (if (in-order? high-var low-var)
+		      (make-polynomial high-var
+				       (adjoin-term (make-term high-order
+							       (order-poly high-coeff vars))
+						    (the-empty-termlist 'sparse)))
+		      (let ((low-order (order (first-term low-termlist)))
+			    (low-coeff (coeff (first-term low-termlist))))
+			(make-polynomial low-var
+					 (adjoin-term (make-term low-order
+								 (order-poly (make-polynomial high-var
+											      (adjoin-term (make-term high-order
+														      low-coeff)
+													   (the-empty-termlist 'sparse)))
+									     vars))
+						      (the-empty-termlist 'sparse))))))))))))
+
+  (define (get-first-term-from-poly p)
+    (first-term (term-list (contents p))))
+
+  (define (join-seperated-poly sp)
+    (make-polynomial (variable (contents (car sp)))
+		     (create-termlist-from-sep sp)))
+
+  (define (create-termlist-from-sep sp)
+    (if (null? sp)
+	(the-empty-termlist 'sparse)
+	(adjoin-term (get-first-term-from-poly (car sp))
+		     (create-termlist-from-sep (cdr sp)))))
+
+  (define (get-ordered-variables-inner poly)
+    (order-vars (remove-duplicate-vars (find-v poly))))
+  (define (get-longer-var-list vars1 vars2)
+    (let ((len1 (length vars1))
+	  (len2 (length vars2)))
+      (if (> len1 len2)
+	  vars1
+	  vars2)))
+
+  (define (canonical-form p vars)
+    (join-seperated-poly (order-seperated-poly (pad-seperated-poly (seperate-expanded-poly (expand p)) vars) vars)))
+
+  (define (get-canonical-forms p1 p2)
+    (let ((vars1 (get-ordered-variables-inner p1))
+	  (vars2 (get-ordered-variables-inner p2)))
+      (let ((varlist (get-longer-var-list vars1 vars2)))
+	(cons (contents (canonical-form p1 varlist))
+	      (contents (canonical-form p2 varlist))))))
 	     
   (define (find-v p)
     (append (list (variable p)) (find-vars (term-list p))))
@@ -220,19 +310,25 @@
 	  (dense-repr terms)
 	  (sparse-repr terms))))
   (define (add-poly p1 p2)
-    (if (same-variable? (variable p1) (variable p2))
-	(let ((added-terms (add-terms (term-list p1)
-				      (term-list p2))))
-	  (make-poly (variable p1) (choose-repr added-terms)))
-	(error "Polys not in same var -- ADD-POLY"
-	       (list p1 p2))))
+    (let ((can-forms (get-canonical-forms p1 p2)))
+      (let ((p1 (car can-forms))
+	    (p2 (cdr can-forms)))
+	(if (same-variable? (variable p1) (variable p2))
+	    (let ((added-terms (add-terms (term-list p1)
+					  (term-list p2))))
+	      (make-poly (variable p1) added-terms)) ;;; REMOVED CHOOSE REPR HERE
+	    (error "Polys not in same var -- ADD-POLY"
+		   (list p1 p2))))))
   (define (mul-poly p1 p2)
-    (if (same-variable? (variable p1) (variable p2))
-	(let ((multiplied-terms (mul-terms (term-list p1)
-					   (term-list p2))))
-	  (make-poly (variable p1) (choose-repr multiplied-terms)))
-	(error "Polys not in same var -- MUL-POLY"
-	       (list p1 p2))))
+    (let ((can-forms (get-canonical-forms p1 p2)))
+      (let ((p1 (car can-forms))
+	    (p2 (cdr can-forms)))
+	(if (same-variable? (variable p1) (variable p2))
+	    (let ((multiplied-terms (mul-terms (term-list p1)
+					       (term-list p2))))
+	      (make-poly (variable p1) multiplied-terms)) ;;; REMOVED CHOOSE REPR HERE
+	    (error "Polys not in same var -- MUL-POLY"
+		   (list p1 p2))))))
   (define (add-terms L1 L2)
     (cond ((empty-termlist? L1) L2)
 	  ((empty-termlist? L2) L1)
@@ -457,8 +553,6 @@
     (attach-tag 'dense terms))
 
 
-(add '(polynomial x dense 2 4 5 5)
-     '(polynomial x dense 3 4 5 6))
   
   ;;; Interface to outside
 
@@ -488,22 +582,29 @@
 (install-packages)
 
 
-(define test-poly (make-polynomial 'x (list 'sparse
+(define test-poly1 (make-polynomial 'z (list 'sparse
 				      (list 2
-					    (make-poly 'y (list 'sparse
+					    (make-polynomial 'x (list 'sparse
 								(list 2
-								      (make-poly 'z (list 'dense 3 2)))
+								      (make-polynomial 'y (list 'dense 3 2)))
 								(list 1
-								      (make-poly 'z (list 'dense 4 5)))))))))
+								      (make-polynomial 'y (list 'dense 4 5)))))))))
 
-test-poly
+(define test-poly2 (make-polynomial 'z (list 'sparse
+				      (list 2
+					    (make-polynomial 'x (list 'sparse (list 20 4) (list 13 5)))))))
+							
+
+test-poly1
+test-poly2
+
+(define simple-poly (make-polynomial 'x (list 'sparse (list 2 3) (list 1 4))))
 
 (begin
   (install-packages)
-  (add (expand-poly test-poly)
-       (expand-poly test-poly)))
+  (add (expand-poly simple-poly)
+       (expand-poly simple-poly)))
 
-;;; I WOULD GUESS THAT IT IS TRYING TO CHOOSE REPR BUT GETS LOST BECAUSE IT ASSUMES NO DUPLICATE ORDERS ;;;
   
 (define (view-terms poly)
   (define (view-iter terms)
@@ -517,12 +618,15 @@ test-poly
   (let ((terms (cdr (contents poly))))
     (view-iter terms)))
     
-;;;; GO TO BOTTOM OF STACKED NESTED POLYS
-;;; CALL/CC
-;;; ITERATE UPWARDS, TESTING THE ORDER OF UPPER/LOWER
-;;; IF OUT OF ORDER, SWITCH AND RETURN TO CALL/CC
-;;; IF THE TOP IS REACHED, RETURN POLY
+;;; BUGS:
 
+;;; It doesn't look like theres a tag in dense termlists during addition, yet the procedure still works
+
+;;; Pad doesn't appear to be working
+;;; Program should not try to add when coeffs are not in same type. meaning you cant combine x and 2xyz or whatever
+;;; Also check your math, so you know what the final result should look like.
+
+;;;Rhythmbox
 
 
 
