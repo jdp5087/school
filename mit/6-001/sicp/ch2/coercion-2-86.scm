@@ -14,6 +14,15 @@
 (define (negate x) (apply-generic 'negate x))
 (define (rationalize-approx real-num)
   (apply-generic 'rationalize-approx real-num 100))
+(define (numer x)
+  (if (equal? (type-tag x) 'rational)
+      (apply-generic 'numer x)
+      (error "object is not of type rational -- NUMER -- " x)))
+(define (denom x)
+  (if (equal? (type-tag x) 'rational)
+      (apply-generic 'denom x)
+      (error "object is not of type rational -- DENOM  -- " x)))
+
 (define (sin-generic x) (apply-generic 'sin x))
 (define (cos-generic x) (apply-generic 'cos x))
 (define (atan-generic x y) (apply-generic 'atan x y))
@@ -124,6 +133,9 @@
 	  ((get-coercion-procedure from-type to-type) from-object)))))
 
 (define (install-scheme-number-package)
+  (define (reduce-integers n d)
+    (let ((g (gcd n d)))
+      (list (/ n g) (/ d g))))
   (define (tag x)
     (attach-tag 'scheme-number x))    
   (put 'add '(scheme-number scheme-number)
@@ -143,6 +155,8 @@
   (put 'square '(scheme-number) (lambda (x) (square x)))
   (put 'sqrt '(scheme-number) (lambda (x) (sqrt x)))
   (put 'negate '(scheme-number) (lambda (x) (* -1 x)))
+  (put 'gcd '(scheme-number scheme-number) gcd)
+  (put 'reduce '(scheme-number scheme-number) reduce-integers)
   (put-coercion 'scheme-number
 		'rational
 		(lambda (x) (make-rational x 1)))
@@ -155,11 +169,11 @@
   ;; internal procedures
   (define (numer x) (car x))
   (define (denom x) (cdr x))
-  (define (equal x y) (and (= (numer x) (numer y))
-			   (= (denom x) (denom y))))
+  (define (equal x y) (and (equ? (numer x) (numer y))
+			   (equ? (denom x) (denom y))))
   (define (make-rat n d)
-    (let ((g (gcd n d)))
-      (cons (/ n g) (/ d g))))
+    (let ((r (reduce n d)))
+      (cons (car r) (cadr r))))
   (define (math-generic-rat proc . args)
     (let ((real-args (map (lambda (x) (raise (tag x))) args)))
       (let ((result (apply apply-generic (cons proc real-args))))
@@ -168,21 +182,23 @@
 	      (rationalize-approx result)
 	      dropped-result)))))
   (define (add-rat x y)
-    (make-rat (+ (* (numer x) (denom y))
-                 (* (numer y) (denom x)))
-              (* (denom x) (denom y))))
+    (make-rat (add (mul (numer x) (denom y))
+		   (mul (numer y) (denom x)))
+              (mul (denom x) (denom y))))
   (define (sub-rat x y)
-    (make-rat (- (* (numer x) (denom y))
-                 (* (numer y) (denom x)))
-              (* (denom x) (denom y))))
+    (make-rat (sub (mul (numer x) (denom y))
+		   (mul (numer y) (denom x)))
+              (mul (denom x) (denom y))))
   (define (mul-rat x y)
-    (make-rat (* (numer x) (numer y))
-              (* (denom x) (denom y))))
+    (make-rat (mul (numer x) (numer y))
+              (mul (denom x) (denom y))))
   (define (div-rat x y)
-    (make-rat (* (numer x) (denom y))
-              (* (denom x) (numer y))))
+    (make-rat (mul (numer x) (denom y))
+              (mul (denom x) (numer y))))
   ;; interface to rest of the system
   (define (tag x) (attach-tag 'rational x))
+  (put 'numer '(rational) numer)
+  (put 'denom '(rational) denom)
   (put 'add '(rational rational)
        (lambda (x y) (tag (add-rat x y))))
   (put 'sub '(rational rational)
@@ -192,7 +208,7 @@
   (put 'div '(rational rational)
        (lambda (x y) (tag (div-rat x y))))
   (put 'equ '(rational rational) equal)
-  (put 'zero '(rational) (lambda (x) (= (numer x) 0)))
+  (put 'zero '(rational) (lambda (x) (equ? (numer x) 0)))
   (put 'cos '(rational) (lambda (x) (math-generic-rat 'cos x)))
   (put 'sin '(rational) (lambda (x) (math-generic-rat 'sin x)))
   (put 'atan '(rational rational) (lambda (x y) (math-generic-rat 'atan x y)))
@@ -425,7 +441,8 @@
 ;; New definition of apply-generic
 (define (apply-generic op . args)
   (define (apply-drop obj)
-    (cond ((equal? (type-tag obj) (car (get-tower-hierarchy))) obj)
+    (cond ((rat-function? obj) obj)
+	  ((equal? (type-tag obj) (car (get-tower-hierarchy))) obj)
 	  (else (let ((drop-result (drop obj)))
 		  (if (equal? obj drop-result)
 		      obj
@@ -480,7 +497,15 @@
       (project obj)
       obj))
 
-
+(define (rat-function? obj)
+  (if (not (equal? (type-tag obj) 'rational))
+      false
+      (let ((n (numer obj))
+	    (d (denom obj)))
+	(if (not (or (poly? n) (poly? d)))
+	    false
+	    true))))
+	
 
 
 

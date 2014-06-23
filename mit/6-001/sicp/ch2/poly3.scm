@@ -70,6 +70,10 @@
 						 (adjoin-termlists (rest-terms L1)
 								   (rest-terms L2))))))))))
 
+(define (greatest-common-divisor a b)
+  (apply-generic 'gcd a b))
+(define (reduce n d)
+  (apply-generic 'reduce n d))
 
 
 (define (install-polynomial-package)
@@ -209,10 +213,6 @@
     (if (same-order? (reverse (find-vars p)) vars)
 	p
 	(begin
-;;	  (display (find-vars p))
-;;	  (newline)
-;;	  (display vars)
-;;	  (newline)
 	  (order-and-check (order-poly p vars) vars))))
 
   (define (order-poly p vars)
@@ -276,6 +276,7 @@
 	     
   (define (find-v p)
     (append (list (variable p)) (find-vars (term-list p))))
+
   (define (poly-zero? p)
     (define (zero-iter terms)
       (if (empty-termlist? terms)
@@ -285,6 +286,24 @@
 		(zero-iter (rest-terms terms))
 		false))))
     (zero-iter (term-list p)))
+
+  (define (poly-equ? p1 p2)
+    (if (not (eq? (variable p1) (variable p2)))
+	false
+	(equal-termlists? (term-list p1) (term-list p2))))
+
+  (define (equal-termlists? terms1 terms2)
+    (cond ((and (empty-termlist? terms1) (empty-termlist? terms2))
+	   true)
+	  ((empty-termlist? terms1) false)
+	  ((empty-termlist? terms2) false)
+	  (else (let ((ft1 (first-term terms1))
+		      (ft2 (first-terms terms2)))
+		  (if (not (and (= (order ft1) (order ft2))
+				(equ? (coeff ft1) (coeff ft2))))
+		      false
+		      (equal-termlists? (rest-terms terms1) (rest-terms terms2)))))))
+	   
 
   (define (expanded-poly? terms)
     (define (expanded-iter terms orders)
@@ -372,8 +391,8 @@
 	  (error "variables are not of the same type -- DIV-POLY " variables)
 	  (let ((term-lists (map term-list (list p1 p2))))
 	    (let ((div-result (apply div-terms term-lists)))
-	      (list (make-poly (car variables) (choose-repr (car div-result)))
-		    (make-poly (car variables) (choose-repr (cadr div-result)))))))))
+	      (list (make-poly (car variables) (car div-result)) ;;; REMOVED CHOOSE REPR
+		    (make-poly (car variables) (cadr div-result)))))))) ;;; REMOVED CHOOSE REPR
   (define (div-terms L1 L2)
     (define (update-dividend L1 L2 new-term)
       (add-terms L1
@@ -394,7 +413,73 @@
 		    (list (add-terms (adjoin-term new-term (the-empty-termlist 'sparse))
 				     (car rest-of-result))
 			  (cadr rest-of-result)))))))))
-		  
+
+  (define (remainder-terms a b)
+    (cadr (div-terms a b)))
+
+  (define (pseudoremainder-terms a b)
+    (let ((order-a (order (first-term a)))
+	  (order-b (order (first-term b)))
+	  (coeff-b (coeff (first-term b))))
+      (let ((integerizing-factor (expt coeff-b (- (+ 1 order-a) order-b))))
+	(cadr (div-terms (mul-term-by-all-terms (make-term 0 integerizing-factor)
+						a)
+			 b)))))
+  (define (extract-coeffs terms)
+    (if (empty-termlist? terms)
+	'()
+	(cons (coeff (first-term terms))
+	      (extract-coeffs (rest-terms terms)))))
+
+  (define (find-total-gcd a)
+    (let ((last-term (car a)))
+      (let ((all-terms (append (list last-term) (reverse a))))
+	(reduce-right gcd false all-terms))))
+
+  (define (div-coeffs-by-constant terms constant)
+    (car (div-terms terms
+		    (adjoin-term (make-term 0 constant)
+				 (the-empty-termlist 'sparse)))))
+	  
+
+  (define (gcd-terms a b)
+    (if (empty-termlist? b)
+	(div-coeffs-by-constant a (find-total-gcd (extract-coeffs a)))
+	(gcd-terms b (pseudoremainder-terms a b))))
+
+  (define (gcd-poly p1 p2)
+    (if (not (equal? (variable p1) (variable p2)))
+	(error "polys not in same var -- GCD-POLY -- " (list (variable p1) (variable p2)))
+	(make-poly (variable p1) (gcd-terms (term-list p1) (term-list p2)))))
+
+  (define (reduce-terms n d)
+    (let ((g (gcd-terms n d)))
+      (let ((c (coeff (first-term g)))
+	    (o2 (order (first-term g)))
+	    (n-o (order (first-term n)))
+	    (d-o (order (first-term d))))
+	(let ((o1 (if (> n-o d-o) n-o d-o)))
+	  (let ((int-coeff (expt c (- (+ 1 o1) o2))))
+	    (let ((int-term (make-term 0 int-coeff)))
+	      (let ((reduced-n (car (div-terms (mul-term-by-all-terms int-term n) g)))
+		    (reduced-d (car (div-terms (mul-term-by-all-terms int-term d) g))))
+		(let ((gcd-coeffs (find-total-gcd (append (extract-coeffs reduced-n)
+							  (extract-coeffs reduced-d)))))
+		  (list (car (div-terms reduced-n (adjoin-term (make-term 0 gcd-coeffs)
+							       (the-empty-termlist 'sparse))))
+			(car (div-terms reduced-d (adjoin-term (make-term 0 gcd-coeffs)
+							       (the-empty-termlist 'sparse)))))))))))))
+
+  (define (reduce-poly n d)
+    (let ((v1 (variable n))
+	  (v2 (variable d)))
+      (if (not (eq? v1 v2))
+	  (error "numerator and denominator not in the same var -- REDUCE-POLY -- " (list n d))
+	  (let ((reduced-termlists (reduce-terms (term-list n) (term-list d))))
+	    (list (make-poly v1 (car reduced-termlists))
+		  (make-poly v2 (cadr reduced-termlists)))))))
+						    
+	  
 		  
   (define (make-poly var terms) (cons var terms))
   (define (variable p) (car p))
@@ -422,11 +507,17 @@
   (put 'negate '(polynomial)
        (lambda (p) (tag (make-poly (variable p) (negate (term-list p))))))
   (put 'zero '(polynomial) (lambda (p) (poly-zero? p)))
+  (put 'equ '(polynomial polynomial) poly-equ?)
   (put 'sparse-repr '(polynomial) (lambda (p) (sparse-repr (term-list p))))
   (put 'dense-repr '(polynomial) (lambda (p) (dense-repr (term-list p))))
   (put 'find-vars '(polynomial) (lambda (p) (find-v p)))
   (put 'expand '(polynomial) (lambda (p) (tag (expand p))))
   (put 'compress-polynomial '(polynomial) (lambda (p) (tag (compress-poly p))))
+  (put 'gcd '(polynomial polynomial) (lambda (p1 p2) (tag (gcd-poly p1 p2))))
+  (put 'reduce '(polynomial polynomial)
+       (lambda (n d)
+	 (let ((r (reduce-poly n d)))
+	   (list (tag (car r)) (tag (cadr r))))))
   'done)
 
 (define (install-sparse-package)
@@ -581,31 +672,6 @@
   (install-sparse-package))
 (install-packages)
 
-
-(define test-poly1 (make-polynomial 'z (list 'sparse
-				      (list 2
-					    (make-polynomial 'x (list 'sparse
-								(list 2
-								      (make-polynomial 'y (list 'dense 3 2)))
-								(list 1
-								      (make-polynomial 'y (list 'dense 4 5)))))))))
-
-(define test-poly2 (make-polynomial 'z (list 'sparse
-				      (list 2
-					    (make-polynomial 'x (list 'sparse (list 20 4) (list 13 5)))))))
-							
-
-test-poly1
-test-poly2
-
-(define simple-poly (make-polynomial 'x (list 'sparse (list 2 3) (list 1 4))))
-
-(begin
-  (install-packages)
-  (add (expand-poly simple-poly)
-       (expand-poly simple-poly)))
-
-  
 (define (view-terms poly)
   (define (view-iter terms)
     (if (empty-termlist? terms)
@@ -626,9 +692,9 @@ test-poly2
 ;;; Program should not try to add when coeffs are not in same type. meaning you cant combine x and 2xyz or whatever
 ;;; Also check your math, so you know what the final result should look like.
 
-;;;Rhythmbox
+;;; TO-DO:
 
-
+;;; - add 'equ procedure to polynomial package and install with put
 
 
 
