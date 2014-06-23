@@ -15,71 +15,33 @@ The resulting account object should process a request only if it is accompanied 
 -----------------------------------------------------------------------------------------------------------------
 
 (define (make-account balance password)
-  (let ((pass-count 0))
-    (define (make-withdrawal amount)
-      (if (>= balance amount)
-	  (begin
-	    (set! balance (- balance amount))
-	    balance)
-	  "Insufficient funds"))
-    (define (make-deposit amount)
-      (set! balance (+ balance amount)))
-    (define (check-password pass-input)
-      (if (equal? password pass-input)
-	  true
-	  false))
-    (define (dispatch arg pass)
-      (cond ((not (check-password pass)) "Incorrect password")
-	    ((equal? arg 'withdrawal) make-withdrawal)
-	    ((equal? arg 'deposit) make-deposit)
-	    (else (error "unknown request -- MAKE-ACCOUNT -- " arg))))
-    dispatch))
+  (define (make-withdrawal amount)
+    (if (>= balance amount)
+	(begin
+	  (set! balance (- balance amount))
+	  balance)
+	"Insufficient funds"))
+  (define (make-deposit amount)
+    (begin
+      (set! balance (+ balance amount))
+      balance))
+  (define (dispatch pass arg)
+    (cond ((not (equal? password pass)) (lambda (amount) "Incorrect Password"))
+	  ((equal? arg 'withdraw) make-withdrawal)
+	  ((equal? arg 'deposit) make-deposit)
+	  (else (error "unknown request -- MAKE-ACCOUNT -- " arg))))
+  dispatch)
 
 (define acc (make-account 100 'foo))
 
-((acc 'bar 'withdrawal) 40)
+((acc 'bar 'withdraw) 40)
+;Value 13: "Incorrect Password"
+((acc 'foo 'withdraw) 40)
+;Value: 60
+((acc 'foo 'deposit) 20)
+;Value: 80
 
 
 
-
-
-;;; forget check-password, dispatch should check password with given args, and then call either withdraw or deposit
-
-;;; Look up difference between withdraw and withdrawal
-
-
-
-
-
-
-
-
-
-
-
-
-
-(define (make-account balance password)
-  (let ((pass-count 0))
-    (define (make-withdrawal amount)
-      (if (>= balance amount)
-	  (begin
-	    (set! balance (- balance amount))
-	    balance)
-	  "Insufficient funds"))
-    (define (make-deposit amount)
-      (set! balance (+ balance amount)))
-    (define (check-password pass-input)
-      (if (equal? password pass-input)
-	  (begin
-	    (set! pass-count 0)
-	    true)
-	  (begin
-	    (set! pass-count (+ pass-count 1))
-	    (if (>= pass-count 7)
-		
-	    false
-    (define (dispatch arg pass)
-      (cond ((not (check-password
 
 
