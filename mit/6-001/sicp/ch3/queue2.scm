@@ -1,0 +1,53 @@
+(define (make-queue)
+  (let ((front-ptr '())
+	(rear-ptr '()))
+    (define (set-front-ptr! item)
+      (set! front-ptr item))
+    (define (set-rear-ptr! item)
+      (set! rear-ptr item))
+    (define (empty-queue?)
+      (null? front-ptr))
+    (define (front-queue)
+      (if (empty-queue?)
+	  '()
+	  (car front-ptr)))
+    (define (insert-queue! item)
+      (let ((new-pair (cons item '())))
+      (if (empty-queue?)
+	  (begin
+	    (set-front-ptr! new-pair)
+	    (set-rear-ptr! new-pair)
+	    front-ptr)
+	  (begin
+	    (set-cdr! rear-ptr new-pair)
+	    (set-rear-ptr! new-pair)
+	    front-ptr))))
+    (define (delete-queue!)
+      (if (empty-queue?)
+	  (error "DELETE! Called with an empty queue " queue)
+	  (begin (set-front-ptr! (cdr front-ptr))
+		 front-ptr)))
+    (define (dispatch m)
+      (cond ((eq? m 'set-front-ptr!) set-front-ptr!)
+	    ((eq? m 'set-rear-ptr!) set-rear-ptr!)
+	    ((eq? m 'empty-queue?) empty-queue?)
+	    ((eq? m 'front-queue) front-queue)
+	    ((eq? m 'insert-queue!) insert-queue!)
+	    ((eq? m 'delete-queue!) delete-queue!)
+	    (else (error "unknown operation -- MAKE-QUEUE " m))))
+    dispatch))
+
+(define (empty-queue? obj)
+  ((obj 'empty-queue?)))
+(define (front-queue obj)
+  ((obj 'front-queue)))
+(define (insert-queue! obj item)
+  ((obj 'insert-queue!) item))
+(define (delete-queue! obj)
+  ((obj 'delete-queue!)))
+
+
+
+	     
+
+
