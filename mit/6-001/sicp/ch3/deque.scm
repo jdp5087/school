@@ -6,7 +6,7 @@
   (cdr ptr))
 (define (make-link-front ele after)
   (cons (cons ele '()) after))
-(define (make-link-back ele before)
+(define (make-link-rear ele before)
   (cons (cons ele before) '()))
 
 (define (front-ptr deque)
@@ -38,13 +38,13 @@
 	(set-car! deque (make-link-front value (front-ptr deque)))
 	value)))
 
-(define (back-insert-deque! deque value)
+(define (rear-insert-deque! deque value)
   (if (empty-deque? deque)
       (let ((new (make-link-front value '())))
 	(set-car! deque new)
 	(set-cdr! deque new))
       (begin
-	(set-cdr! deque (make-link-back value (rear-ptr deque)))
+	(set-cdr! deque (make-link-rear value (rear-ptr deque)))
 	value)))
 
 (define (front-delete-deque! deque)
@@ -52,9 +52,9 @@
       (error "front-delete-deque called on an empty deque " deque)
       (set-car! deque (forward (front-ptr deque)))))
 
-(define (back-delete-deque! deque)
+(define (rear-delete-deque! deque)
   (if (empty-deque? deque)
-      (error "back-delete-deque called on an empty deque " deque)
+      (error "rear-delete-deque called on an empty deque " deque)
       (set-cdr! deque (backward (rear-ptr deque)))))
 
 		
@@ -63,17 +63,17 @@
 (front-insert-deque! d '1)
 (front-insert-deque! d '2)
 (front-insert-deque! d '3)
-(back-insert-deque! d '0)
+(rear-insert-deque! d '0)
 
 (front-deque d)
 (rear-deque d)
 (front-delete-deque! d)
-(back-delete-deque! d)
+(rear-delete-deque! d)
 
 
 
 
-;;; change so that all references to back change to rear
+
 
 ;;; after adding second element, backward of rear-ptr should point to next element
 
