@@ -38,4 +38,17 @@ Exercise 3.24.  In the table implementations above, the keys are tested for equa
             (else (error "Unknown operation -- TABLE" m))))
     dispatch))
 
-(
+
+
+(define t1 (make-table equal?))
+
+((t1 'insert-proc!) 'stuff 'junk 'wooo!)
+((t1 'lookup-proc) 'stuff 'junk)
+;Value: wooo!
+
+(define t2 (make-table >))
+
+((t2 'insert-proc!) 1 2 'foo)
+((t2 'lookup-proc) 2 3)
+;Value: foo
+
