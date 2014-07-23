@@ -1,0 +1,505 @@
+###3.12###
+PROMPT:
+------------------------------------------------------------
+Exercise 3.12.  The following procedure for appending lists was introduced in section 2.2.1:
+
+(define (append x y)
+  (if (null? x)
+      y
+      (cons (car x) (append (cdr x) y))))
+
+Append forms a new list by successively consing the elements of x onto y. The procedure append! is similar to append, but it is a mutator rather than a constructor. It appends the lists by splicing them together, modifying the final pair of x so that its cdr is now y. (It is an error to call append! with an empty x.)
+
+(define (append! x y)
+  (set-cdr! (last-pair x) y)
+  x)
+
+Here last-pair is a procedure that returns the last pair in its argument:
+
+(define (last-pair x)
+  (if (null? (cdr x))
+      x
+      (last-pair (cdr x))))
+
+Consider the interaction
+
+(define x (list 'a 'b))
+(define y (list 'c 'd))
+(define z (append x y))
+z
+(a b c d)
+(cdr x)
+<response>
+(define w (append! x y))
+w
+(a b c d)
+(cdr x)
+<response>
+
+What are the missing <response>s? Draw box-and-pointer diagrams to explain your answer.
+------------------------------------------------------------
+
+;; I drew out the box-and-pointer structure on paper.
+
+;; after definition of z, (cdr x) produces:
+
+;; (b)
+
+;; after definition of w, (cdr x) produces:
+
+;; (b c d)
+
+
+###3.13###
+PROMPT:
+------------------------------------------------------------
+Exercise 3.13.  Consider the following make-cycle procedure, which uses the last-pair procedure defined in exercise 3.12:
+
+(define (make-cycle x)
+  (set-cdr! (last-pair x) x)
+  x)
+
+Draw a box-and-pointer diagram that shows the structure z created by
+
+(define z (make-cycle (list 'a 'b 'c)))
+
+What happens if we try to compute (last-pair z)?
+------------------------------------------------------------
+
+An infinite loop, I also drew this out on paper. The reason is because there is no longer a null list to act as a sentinel.
+
+###3.14###
+PROMPT:
+------------------------------------------------------------
+Exercise 3.14.  The following procedure is quite useful, although obscure:
+
+(define (mystery x)
+  (define (loop x y)
+    (if (null? x)
+        y
+        (let ((temp (cdr x)))
+          (set-cdr! x y)
+          (loop temp x))))
+  (loop x '()))
+
+Loop uses the ``temporary'' variable temp to hold the old value of the cdr of x, since the set-cdr! on the next line destroys the cdr. Explain what mystery does in general. Suppose v is defined by (define v (list 'a 'b 'c 'd)). Draw the box-and-pointer diagram that represents the list to which v is bound. Suppose that we now evaluate (define w (mystery v)). Draw box-and-pointer diagrams that show the structures v and w after evaluating this expression. What would be printed as the values of v and w ?
+------------------------------------------------------------
+
+;; I drew this out, and my prediction is that we will see v -> (a), and w -> (d c b a).
+;; Let's find out, shall we?
+
+(define (mystery x)
+  (define (loop x y)
+    (if (null? x)
+        y
+        (let ((temp (cdr x)))
+          (set-cdr! x y)
+          (loop temp x))))
+  (loop x '()))
+
+(define v (list 'a 'b 'c 'd))
+(define w (mystery v))
+
+w
+;Value 16: (d c b a)
+
+v
+;Value 17: (a)
+
+;; The reason for this is becuase v points to the beginning of the list data structure (a b c d),
+;; but the first iteration of loop breaks the cdr and sets it to y, which at that point is an empty list.
+;; v is set to the cdr of pairs, but the pointer v only points to the pair (a . '()).
+
+####3.16###
+------------------------------------------------------------
+Exercise 3.16.  Ben Bitdiddle decides to write a procedure to count the number of pairs in any list structure. ``It's easy,'' he reasons. ``The number of pairs in any structure is the number in the car plus the number in the cdr plus one more to count the current pair.'' So Ben writes the following procedure:
+
+(define (count-pairs x)
+  (if (not (pair? x))
+      0
+      (+ (count-pairs (car x))
+         (count-pairs (cdr x))
+         1)))
+
+Show that this procedure is not correct. In particular, draw box-and-pointer diagrams representing list structures made up of exactly three pairs for which Ben's procedure would return 3; return 4; return 7; never return at all.
+------------------------------------------------------------
+On paper.
+
+###3.17###
+PROMPT:
+------------------------------------------------------------
+Exercise 3.17.  Devise a correct version of the count-pairs procedure of exercise 3.16 that returns the number of distinct pairs in any structure. (Hint: Traverse the structure, maintaining an auxiliary data structure that is used to keep track of which pairs have already been counted.)
+------------------------------------------------------------
+(define (in struct structs)
+  (cond ((null? structs) false)
+	((eq? struct (car structs)) true)
+	(else (in struct (cdr structs)))))
+
+(define (count-pairs struct)
+  (let ((known-structs '()))
+    (define (iter s)
+      (cond ((null? s) 0)
+	    ((in s known-structs) 0)
+	    ((not (pair? s)) 0)
+	    (else
+	     (begin
+	       (set! known-structs (cons s known-structs))
+	       (+ 1 (iter (car s)) (iter (cdr s)))))))
+    (iter struct)))
+
+
+(define w (list 'a 'b 'c))
+(count-pairs w)
+;Value: 3
+
+(define first-part (cons 'a '()))
+(define y (cons (cons 'a first-part) first-part))
+(count-pairs y)
+;Value: 3
+
+(define a (cons 'a '()))
+(define b (cons a a))
+(define c (cons b b))
+(count-pairs c)
+;Value: 3
+
+###3.18###
+PROMPT:
+-----------------------------------------------------------
+Exercise 3.18.  Write a procedure that examines a list and determines whether it contains a cycle, that is, whether a program that tried to find the end of the list by taking successive cdrs would go into an infinite loop. Exercise 3.13 constructed such lists.
+------------------------------------------------------------
+(define (cycle? struct)
+  (define (check-upstream pointer up)
+    (cond ((null? up) false)
+	  ((eq? pointer (car up)) true)
+	  (else (check-upstream pointer (cdr up)))))
+  (define (check-for-cycle s k)
+    (cond ((null? k) false)
+	  ((and (eq? s (car k))
+		(pair? s)
+		(or (check-upstream (car s) (cdr k))
+		    (check-upstream (cdr s) (cdr k))))
+	   true)
+	  (else (check-for-cycle s (cdr k)))))
+  (let ((known '()))
+    (define (iter s)
+      (cond ((null? s) (list false))
+	    ((check-for-cycle s known) (list true))
+	    ((not (pair? s)) (list false))
+	    (else
+	     (begin (set! known (cons s known))
+		    (append (iter (car s)) (iter (cdr s)))))))
+    (reduce-left (lambda (x y)
+		   (if (and (false? x) (false? y))
+		       false
+		       true))
+		 false
+		 (iter struct))))
+     
+	   
+
+
+(define w (list 'a 'b 'c))
+(cycle? w)
+;Value: #f
+
+(define f (cons 'a '()))
+(define s (cons 'b f))
+(set-cdr! (cdr s) s)
+(cycle? s)
+;Value: #f
+
+###3.19###
+------------------------------------------------------------
+Exercise 3.19.  Redo exercise 3.18 using an algorithm that takes only a constant amount of space. (This requires a very clever idea.)
+------------------------------------------------------------
+
+(define (cycle? struct)
+  (let ((target (cons '() '())))
+    (define (iter s)
+      (if (null? s)
+	  false
+	  (let ((next (cdr s)))
+	    (if (eq? s target)
+		true
+		(begin (set-cdr! s target)
+		       (iter next))))))
+    (iter struct)))
+
+(define w (list 'a 'b 'c 1 2 3))
+
+(cycle? w)
+
+(define s (list 'a 'b 'c 1 2 3))
+(set-cdr! (cdr (cddddr s)) s)
+
+(cycle? s)
+
+;; At first I had trouble with this one, until I realized that I had misread the prompt, which had
+;; specified that the data structure must be a list (which implies that the car can be ignored
+;; and that only the cdr might contain a cyclic reference).
+
+;; The idea is that if a cycle exists, then traversing the structure will ultimately end
+;; up re-tracing a path that has already been traversed. By altering where the cdr points
+;; to after each node is visited, we know that if we end up at target, (a pair not within
+;; the original structure, then a cycle exists).
+
+;; My solution destroys the list, unless it were modified to make a copy. Here's an implementation
+;; of Floyd's algorithm, found on the sicp community wiki. I'm pretty sure this is what the authors
+;; were looking for.
+	
+(define (contains-cycle? lst) 
+  (define (safe-cdr l) 
+    (if (pair? l) 
+	(cdr l) 
+	'())) 
+  (define (iter a b) 
+    (cond ((not (pair? a)) #f) 
+	  ((not (pair? b)) #f) 
+	  ((eq? a b) #t) 
+	  ((eq? a (safe-cdr b)) #t) 
+	  (else (iter (safe-cdr a) (safe-cdr (safe-cdr b)))))) 
+  (iter (safe-cdr lst) (safe-cdr (safe-cdr lst))))
+
+;; Very clever indeed.
+
+###3.20###
+PROMPT:
+------------------------------------------------------------
+Exercise 3.20.  Draw environment diagrams to illustrate the evaluation of the sequence of expressions
+
+(define x (cons 1 2))
+(define z (cons x x))
+(set-car! (cdr z) 17)
+(car x)
+17
+
+using the procedural implementation of pairs given above. (Compare exercise 3.11.)
+------------------------------------------------------------
+
+On paper
+
+###3.21###
+PROMPT:
+-----------------------------------------------------------------------------------------------------------------
+Exercise 3.21.  Ben Bitdiddle decides to test the queue implementation described above. He types in the procedures to the Lisp interpreter and proceeds to try them out:
+
+(define q1 (make-queue))
+(insert-queue! q1 'a)
+((a) a)
+(insert-queue! q1 'b)
+((a b) b)
+(delete-queue! q1)
+((b) b)
+(delete-queue! q1)
+(() b)
+
+``It's all wrong!'' he complains. ``The interpreter's response shows that the last item is inserted into the queue twice. And when I delete both items, the second b is still there, so the queue isn't empty, even though it's supposed to be.'' Eva Lu Ator suggests that Ben has misunderstood what is happening. ``It's not that the items are going into the queue twice,'' she explains. ``It's just that the standard Lisp printer doesn't know how to make sense of the queue representation. If you want to see the queue printed correctly, you'll have to define your own print procedure for queues.'' Explain what Eva Lu is talking about. In particular, show why Ben's examples produce the printed results that they do. Define a procedure print-queue that takes a queue as input and prints the sequence of items in the queue.
+-----------------------------------------------------------------------------------------------------------------
+
+;; We are merely seeing the queue representation, which is a pointer to the first value in the queue, and a pointer
+;; to the last value in the queue respectively.
+
+;(define q1 (make-queue))
+;; returns an empty queue which looks like ( () . () )
+
+;(insert-queue! q1 'a)
+;((a) a)
+;; changes both front and rear to point to the pair ('a ()) because the list was empty
+;(insert-queue! q1 'b)
+;((a b) b)
+;; sets the cdr of pair ('a ()) to hold the pair ('b ()), therefore making the car of the
+;; representation point to (a (b ())). Also updates the cdr of the queue pair to hold ('b ())
+
+;(delete-queue! q1)
+;((b) b)
+;; The front-ptr now points to (cdr (a (b ()))), which is just (b ())
+
+;(delete-queue! q1)
+;(() b)
+;; Now front-ptr points to (cdr (b ())), which is (). B doesn't change, because
+;; there is no need. The queue is by definition empty (see definition of empty-queue,
+;; which refers to only the front-ptr to see if it is null.
+;; b is only needed for inserts, and since (empty-queue?) will be true
+;; if another element is added, both the car and cdr of queue will be updated.
+;; for instance:
+;; (insert-queue 'c)
+;; would yield ((c) c)).
+
+;; A print queue operation will simply take a queue and print the front-ptr
+;; this is because this is the actual representation of the values in the list,
+;; and the rear-ptr of a queue is only needed for the insertion of new values.
+
+(define (print-queue queue)
+  (front-ptr queue))
+
+
+(print-queue q1)
+
+###3-22###
+PROMPT:
+--------------------------------------------------------------------------------
+Exercise 3.22.  Instead of representing a queue as a pair of pointers, we can build a queue as a procedure with local state. The local state will consist of pointers to the beginning and the end of an ordinary list. Thus, the make-queue procedure will have the form
+
+(define (make-queue)
+  (let ((front-ptr ...)
+        (rear-ptr ...))
+    <definitions of internal procedures>
+    (define (dispatch m) ...)
+    dispatch))
+
+Complete the definition of make-queue and provide implementations of the queue operations using this representation.
+--------------------------------------------------------------------------------\
+
+(define (make-queue)
+  (let ((front-ptr '())
+	(rear-ptr '()))
+    (define (set-front-ptr! item)
+      (set! front-ptr item))
+    (define (set-rear-ptr! item)
+      (set! rear-ptr item))
+    (define (empty-queue?)
+      (null? front-ptr))
+    (define (front-queue)
+      (if (empty-queue?)
+	  '()
+	  (car front-ptr)))
+    (define (insert-queue! item)
+      (let ((new-pair (cons item '())))
+      (if (empty-queue?)
+	  (begin
+	    (set-front-ptr! new-pair)
+	    (set-rear-ptr! new-pair)
+	    front-ptr)
+	  (begin
+	    (set-cdr! rear-ptr new-pair)
+	    (set-rear-ptr! new-pair)
+	    front-ptr))))
+    (define (delete-queue!)
+      (if (empty-queue?)
+	  (error "DELETE! Called with an empty queue " queue)
+	  (begin (set-front-ptr! (cdr front-ptr))
+		 front-ptr)))
+    (define (dispatch m)
+      (cond ((eq? m 'set-front-ptr!) set-front-ptr!)
+	    ((eq? m 'set-rear-ptr!) set-rear-ptr!)
+	    ((eq? m 'empty-queue?) empty-queue?)
+	    ((eq? m 'front-queue) front-queue)
+	    ((eq? m 'insert-queue!) insert-queue!)
+	    ((eq? m 'delete-queue!) delete-queue!)
+	    (else (error "unknown operation -- MAKE-QUEUE " m))))
+    dispatch))
+
+(define (empty-queue? obj)
+  ((obj 'empty-queue?)))
+(define (front-queue obj)
+  ((obj 'front-queue)))
+(define (insert-queue! obj item)
+  ((obj 'insert-queue!) item))
+(define (delete-queue! obj)
+  ((obj 'delete-queue!)))
+
+(define q (make-queue))
+
+(empty-queue? q)
+;Value: #t
+
+(front-queue q)
+;Value: ()
+
+(insert-queue! q 'a)
+(insert-queue! q 'b)
+
+(front-queue q)
+;Value: a
+
+(delete-queue! q)
+
+(front-queue q)
+;Value: b
+
+###3.23###
+PROMPT:
+------------------------------------------------------------
+Exercise 3.23.  A deque (``double-ended queue'') is a sequence in which items can be inserted and deleted at either the front or the rear. Operations on deques are the constructor make-deque, the predicate empty-deque?, selectors front-deque and rear-deque, and mutators front-insert-deque!, rear-insert-deque!, front-delete-deque!, and rear-delete-deque!. Show how to represent deques using pairs, and give implementations of the operations.23 All operations should be accomplished in (1) steps.
+------------------------------------------------------------
+
+(define (element ptr)
+  (car (car ptr)))
+(define (backward ptr)
+  (cdr (car ptr)))
+(define (forward ptr)
+  (cdr ptr))
+(define (make-link-front ele after)
+  (cons (cons ele '()) after))
+(define (make-link-rear ele before)
+  (cons (cons ele before) '()))
+
+(define (set-backward-ptr! ptr value)
+  (set-cdr! (car ptr) value))
+(define (set-forward-ptr! ptr value)
+  (set-cdr! ptr value))
+
+(define (front-ptr deque)
+  (car deque))
+(define (rear-ptr deque)
+  (cdr deque))
+(define (set-front-ptr! deque element)
+  (set-car! deque element))
+(define (set-rear-ptr! deque element)
+  (set-cdr! deque element))
+(define (empty-deque? deque)
+  (or (null? (front-ptr deque))
+      (null? (rear-ptr deque))))
+(define (make-deque)
+  (cons '() '()))
+
+
+(define (front-deque deque)
+  (if (empty-deque? deque)
+      (error "called front deque on an empty deque " deque)
+      (element (front-ptr deque))))
+(define (rear-deque deque)
+  (if (empty-deque? deque)
+      (error "called rear-deque on an empty deque " deque)
+      (element (rear-ptr deque))))
+
+(define (front-insert-deque! deque value)
+  (if (empty-deque? deque)
+      (let ((new (make-link-front value '())))
+	(set-front-ptr! deque new)
+	(set-rear-ptr! deque new)
+	value)
+      (let ((new (make-link-front value (front-ptr deque))))
+	(set-backward-ptr! (front-ptr deque) new)
+	(set-front-ptr! deque new)
+	value)))
+
+(define (rear-insert-deque! deque value)
+  (if (empty-deque? deque)
+      (let ((new (make-link-front value '())))
+	(set-front-ptr! deque new)
+	(set-rear-ptr! deque new)
+	value)
+      (let ((new (make-link-rear value (rear-ptr deque))))
+	(set-forward-ptr! (rear-ptr deque) new)
+	(set-rear-ptr! deque new)
+	value)))
+
+(define (front-delete-deque! deque)
+  (if (empty-deque? deque)
+      (error "front-delete-deque called on an empty deque " deque)
+      (begin
+	(set-front-ptr! deque (forward (front-ptr deque)))
+	(if (not (null? (front-ptr deque)))
+	    (set-backward-ptr! (front-ptr deque) '())))))
+
+(define (rear-delete-deque! deque)
+  (if (empty-deque? deque)
+      (error "rear-delete-deque called on an empty deque " deque)
+      (begin
+	(set-rear-ptr! deque (backward (rear-ptr deque)))
+	(if (not (null? (rear-ptr deque)))
+	    (set-forward-ptr! (rear-ptr deque) '())))))
+
+

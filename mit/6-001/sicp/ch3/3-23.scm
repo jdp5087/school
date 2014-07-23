@@ -1,3 +1,9 @@
+###3.23###
+PROMPT:
+------------------------------------------------------------
+Exercise 3.23.  A deque (``double-ended queue'') is a sequence in which items can be inserted and deleted at either the front or the rear. Operations on deques are the constructor make-deque, the predicate empty-deque?, selectors front-deque and rear-deque, and mutators front-insert-deque!, rear-insert-deque!, front-delete-deque!, and rear-delete-deque!. Show how to represent deques using pairs, and give implementations of the operations.23 All operations should be accomplished in (1) steps.
+------------------------------------------------------------
+
 (define (element ptr)
   (car (car ptr)))
 (define (backward ptr)
@@ -38,10 +44,6 @@
       (error "called rear-deque on an empty deque " deque)
       (element (rear-ptr deque))))
 
-;; Think about this, but if the front and back are equal, set
-;; back ptr to point to front, otherwise set old front to point to new front
-
-;; also, may want to create a set-front-ptr! and set-rear-ptr! function
 (define (front-insert-deque! deque value)
   (if (empty-deque? deque)
       (let ((new (make-link-front value '())))
@@ -80,18 +82,6 @@
 	(if (not (null? (rear-ptr deque)))
 	    (set-forward-ptr! (rear-ptr deque) '())))))
 
-		
-(define d (make-deque))
-
-(front-insert-deque! d '1)
-(front-insert-deque! d '2)
-(front-insert-deque! d '3)
-(rear-insert-deque! d '0)
 
 
-(front-deque d)
-(rear-deque d)
-
-(front-delete-deque! d)
-(rear-delete-deque! d)
 

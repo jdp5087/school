@@ -39,3 +39,7 @@ v
 ;; The reason for this is becuase v points to the beginning of the list data structure (a b c d),
 ;; but the first iteration of loop breaks the cdr and sets it to y, which at that point is an empty list.
 ;; v is set to the cdr of pairs, but the pointer v only points to the pair (a . '()).
+
+
+
+
