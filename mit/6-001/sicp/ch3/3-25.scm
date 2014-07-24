@@ -11,17 +11,17 @@ Exercise 3.25.  Generalizing one- and two-dimensional tables, show how to implem
       (cond ((null? records) false)
 	    ((equality-test key (caar records)) (car records))
 	    (else (assoc key (cdr records)))))
-    (define (lookup keys)
+    (define (lookup . keys)
       (define (lookup-iter keys parent)
 	(if (= (length keys) 1)
 	    (let ((record (assoc (car keys) (cdr parent))))
 	      (if record
 		  (cdr record)
-		  false)))
-	(let ((subtable (assoc (car keys) (cdr parent))))
-	  (if subtable
-	      (lookup-iter (cdr keys) subtable)
-	      false)))
+		  false))
+	    (let ((subtable (assoc (car keys) (cdr parent))))
+	      (if subtable
+		  (lookup-iter (cdr keys) subtable)
+		  false))))
       (lookup-iter keys local-table))
     (define (insert! . values)
       (define (create-tables values)
@@ -33,18 +33,17 @@ Exercise 3.25.  Generalizing one- and two-dimensional tables, show how to implem
       (define (insert-iter values parent)
 	(let ((key (car values)))
 	  (cond ((< (length values) 2) (error "insert! requires at least two values " values))
-		((= (length values 2)
+		((= (length values) 2)
 		    (let ((record (assoc key (cdr parent))))
 		      (if record
 			  (set-cdr! record (cadr values))
 			  (set-cdr! parent
 				    (cons (cons key (cadr values))
-					  (cdr parent)))))))
+					  (cdr parent))))))
 		(else
 		 (let ((subtable (assoc key (cdr parent))))
 		   (if subtable
-		       (set-cdr! (cons (insert-iter (cdr values) subtable)
-				       (cdr subtable)))
+		       (insert-iter (cdr values) subtable)
 		       (set-cdr! parent
 				 (cons (create-tables values)
 				       (cdr parent)))))))))
@@ -60,6 +59,20 @@ Exercise 3.25.  Generalizing one- and two-dimensional tables, show how to implem
 (define t3 (make-table equal?))
 
 ((t3 'insert-proc!) 'foo 'bar 'baz 'bazzam 'hello)
+;Value: ok
+
+((t3 'lookup-proc) 'foo 'bar 'baz 'bazzam)
+
+((t3 'insert-proc!) 'foo 'bar 'baz 'bazzam 'goodbye)
+;Value: ok
+
+((t3 'lookup-proc) 'foo 'bar 'baz 'bazzam)
+;Value: goodbye
+
+((t3 'insert-proc!) 'foo 'bar 'baz 'stuff)
+
+((t3 'lookup-proc) 'foo 'bar 'baz)
+;Value: stuff
 
 
 
