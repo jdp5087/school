@@ -22,7 +22,7 @@ Now add rf to itself, using add. You will observe that this addition procedure d
 (define (rat-function? obj)
   (if (not (equal? (type-tag obj) 'rational))
       false
-      (let ((n (numer obj))
+      (let ((n (numer obj))q
 	    (d (denom obj)))
 	(if (not (or (poly? n) (poly? d)))
 	    false
