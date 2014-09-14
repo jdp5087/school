@@ -1,0 +1,299 @@
+### MEMORY ADDRESSES ###
+
+logical address - specifies the address of an operand or an instruction. Each logical address consiists of a segment and and offset
+
+linear address (virtual address) - single 32 bit unsigned integer (up to 4,294,967,296)
+
+Physical address - corresponds to the electrical signals sent along the address pins of the microprocessor memory bus. 32-bit or 36-bit unsigned.
+
+Memory Management Unit (MMU) - translates a logical address through a segmentation unit to a linear address, which then goes through a seperate circuit page unit to produce a physical address.
+
+Memory arbiter - controls access to the RAM chip, by asserting that cpus communicate before access, invisible to the programmer.
+
+real mode - addressing mode that exists to allow backwards compatibility and bootstrapping
+
+2 parts of logical address:
+  - segment selector - 16 bits
+  - offset - 32 bits
+
+segmentation register whose only purpose is to hold segment selectors
+	     -cs ss ds es fs gs
+
+cs - code segment register, which points to a segment containing program instructions
+ss - stack segment register
+ds - data segment register
+
+es fs and gs are general purpose segment regsiters
+
+cs also has a special two bit fields that specifies Current Privelege Level (CPL) of the CPU. 0 denotes the highest privelege while 3 is lowest. In linux, only 0 and 3 are used, where 0 is kernel mode and 3 is user mode.
+
+Global descriptor table - address and size stored in gdtr
+Local Descriptor Table - address and size stored in ldtr control reg
+
+segments are just chunks of memory, with a Segment Descriptor being an object with a bunch of metadata fields such as linear address, granularity, limit (the offset, depends on granularity), whether or not it is a system critical data structure, type, DPL, whether it is code or data, etc.
+
+
+Task State Segment Descriptors - only saved in GDT, save the state of processor registers
+
+Each of the six programmable segmentation registers also has an accompanying non-programmable 8-bit register that contains a segment descriptor
+
+The GDT and the LDT are only necessary when segments are being swapped, otherwise, the descriptor stored in the nonprogrammable register are enough to reference any part of a given segment.
+
+
+GDT can hold at most 8191  segment descriptors (2**13 -1).
+
+How the segmentation unit works:
+
+- checks the TI fields of segment selector, 0 if global, 1 if local
+- retrieves the base linear address of the needed descriptor table from gdtr or ldtr
+
+- computes address of segment descriptor by multiplying index times 8 and adding to base
+
+- the final linear address is computed by adding the offset found in the descriptor
+
+- segment descriptor is placed in nonprogrammable register associated with segment selector, only needs be changed when segment selector changes.
+
+linux uses segmentation in a limited way, because memory management is simpler without, and because RISC instruction sets have limited support for segmentation.
+
+every user space process uses the same segment for both code and data, every kernel mode program uses kernel code segment and kernel data segment.
+
+macros __USER_CS, __USER_DS, __KERNEL_CS, and __KERNEL_DS
+
+When the CPL is equal to 3 (User Mode), the ds register must contain the user data segment, whereas with CPL equal to 0, the ds register must reference the kernel data segment.
+
+the ss register is the same for the user and kernel stack segments
+
+the es register holds user data structures
+
+every CPU has its own GDT
+
+EACH GDT HAS 18 segment descriptors and 14 null (the null are to keep segments that are used together grouped so that they are in cache at the same time)
+
+of the 18:
+   4 user and kernel code and data segments
+   
+   Task State Segment (small subset of kernel data segment)
+
+   Default local descriptor table (usually shared by all processes)
+
+   Three Thread Local Storage (TLS) segments
+
+   Three Advanced Power Management (AMP) segments (for use by BIOS functions, which use segments)
+
+   Five segments related to PnP BIOS services (for same reason as previous)
+
+   Special TSS segment for Double Fault exceptions
+
+Most linux user mode applicationsn do not make use of LDT, so a default is shared by most processes.
+
+modify_ldt allows a process to modify the LDT
+
+
+### 9/10/2014 ###
+
+continuous linear addresses are mapped into contiguous physical addressess. 
+
+page refers to both a set of linear addresses and to the data contained in this group of addresses.
+
+a page frame contains a page - page frame is the data itself
+
+page tables map linear to physical addresses.
+
+
+intel processors handle 4kb pages
+
+32-bit linear address is divided into three fields
+
+Directory - 10 most significant bits
+
+Table - 10 intermediate bits
+
+offset - 12 least significant digits
+
+the two-level scheme allows more efficiency, 32 bit linear addressing would require 4 MB for the page table of each address.
+
+cr3 -  the physical address of the page directory in use
+
+The 10 bytes in both the page and table parts of the linear address can each address 1024 cells, so total we have 1024x1024x4096 = 2**32
+
+exception 14 - page fault - Present flag missing
+
+flags in Page Directory and Page Table entries - Present - 20 bits - accessed - dirty - read/write - user/supervisor - PCD and PWD flags
+
+
+### SEP 12 2014 ###
+
+multiprocessor systems have seperate hardware cache for every processor
+
+cache snooping - if a cpu alters data in its cache, it must notify other cpus if they contain the same data
+
+CD flag of cr0 register enables or disables the cache circuitry
+
+NW flag of cr0 specifies write-through or write-back
+
+Each page Table entry has a Page Cache Disable (PCD) flag and a Page Write Through (PWT) (controls write through or write back)
+
+linux clears both flags in page table entries, and as a result caching is enabled and write-back employed
+
+80x86 processors use a Translation Lookaside Buffer to cache linear addresses. The first lookup is slow through page tables. Each processor has its own local TLB, and the are not synced.
+
+when cr3 is modified, the TLB is "cleared"
+
+64 and 32 bit architectures actually use the same scheme (32 bits without PAE are only two paging levels, with others set to 0)
+
+Page Global Directory
+Page Upper Directory
+Page Middle Directory
+Page Table
+(Which hold pages so we have potentially 5 divisions of address)
+
+In 32-bit architectures, the Global and Upper directories only have 1 entry, this way the code works for both 32 and 64 with PAE, the Global directory corresponds to the PDPT, the Page upper is eliminated, page middle corresponds to page directory, and page table to page table
+
+each process holds a reference to its own Global Page Directory, which is stored in cr3. When a process switches, the new process has its own descriptor loaded into cr3
+
+
+LINEAR ADDRESS FIELDS
+macros
+
+PAGE_SHIFT - 12 in x86 defined in arch/x86/include/asm/page_types.h
+
+PMD_SHIFT - used in PMD_SIZE and PMD_SHIFT defined in arch/x86/include/asm/pgtable-3level_types.h
+	  22 without PAE, with 21, 12 from offset and 10 or 9 from PMD
+
+PUD_SHIFT on 80x86, PUD_SHIFT is always equal to PMD_SHIFT and PUD_SIZE
+
+PGDIR_SHFIT PAE on == 30 off == 22
+
+PAE OFF
+PTRS_PE_PTE 1024
+PTRS_PER_PMD 1
+PTRS_PER_PUD 1
+PTRS_PER_PGD 1024
+
+PAE ON
+PTRS_PER_PTE 512
+PTRS_PER_PMD 512
+PTRS_PER_PUD 1
+PTRS_PER_PGD 4
+
+pte_t, pmd_t, pud_t, pgd_t are all 64 or 32 bit data types for handling directory entries
+64 with pae, 32 without
+
+pgprot_t is a 64 or 32 bit datatype that describes protection flags associated with an entry
+
+conversion macros __pte, __pmd, __put, __pgd, and __pgprot cast an unsigned int into required type
+
+pte_val, pmd_val, pud_val, pgd_val and pgprot_val cast to an insigned int
+
+FUNCS TO READ OR MODIFY PAGE TABLE ENTRIES:
+
+pte_none, pmd_none, pud_none, pgd_none, pgprot_none == 1 (true) if the entry is 0
+
+*_clear, clear an entry, thus forbidding a process to use the linear address mapped by entry
+
+set_* write a given value into page table entry set_*_atomic ensures that the 64 bit value is written automatically when PAE is enabled
+
+pte_same(a,b) true if same entry
+
+pmd_large(e) true if PMD entry e refers to (2 or 4 mb) page
+
+pmd_bad true if - present flag cleared - r/w flag cleared - either Accessed or Dirty cleared
+
+pte_present - true if either present or page size is 1
+
+pmd_present - true if Present is 1 (loaded in main mem)
+
+not going to write, but there are a whole suite of functions for accessing page table flags, allocating, freeing, etc.
+
+During init the kernel builds a physical address map that specifies which address ranges are usable by the kernel and which are unavailable (map hardware devices I/O shared memory or because corresponding page frames contain BIOS data)
+
+reserved regions: (can't be swapped to disk)
+	 unvalabile physical addresses
+	 kernel code and data structures
+
+page frame 0 stores system hardware configuration detected during Power-On Self-Test
+
+phys addresses from 0x000a0000 to 0x000fffff are reserved for BIOS routines and for ISA graphics cards
+
+-early in the boot sequence, the kernel queries the BIOS and learns the size of physical memory
+it can also invoke a BIOS procedure to build a list of physical address ranges and corresponding data types
+
+machine tries machine_specific_memory_setup from bios, default is to mark LOWMEMSIZE 0x9f to 0x100 page frames as reserved.
+
+
+The kernel starts at 0x00100000 and is generally less than 3MB. usually it goes _text _initialized_data and _uninitialized_data
+
+
+linear address space of a process 0x00000000 to 0xbfffffff - User/Kernel mode
+0xc0000000 to 0xffffffff Kernel mode only
+
+PAGE_OFFSET == 0xc0000000
+
+The entries in PGD below 0xc0000000 depends on process running. Higher is the same for all data and stored in master kernel Page Global Directory
+
+the kernel initializes its own page tables in two phases
+
+phase1 - limited address space with code and data segments, initial page tables, and 128k for dynamic data structures -- just large enough to hold kern and 128k
+
+second phase, kernel uses all existing ram and sets up tables properly.
+
+PGD is initialized statically during compilation, and page tables are initialized in head.S startup_32 function
+
+all of the data in phase one must be capable of being addressed in both real and protected mode
+
+if the page table were mapping 8 mb, then the PGD would have directories at 0, 1, 768, and 769. This would map two 8mb linear address spaces (one for real, one for protected).
+
+the address field of 0 and 768 are set to the physical address of pg0, while 1 and 769 are set to the page frame following pg0
+
+Present, Read/Write, and User/Supervisor are set in all four entries
+
+accessed, dirty, PCD, PWD, and Page Size flags are all cleared.
+
+
+final mapping must map linear addresses starting at 0xc0000000 to addresses starting from 0
+
+__pa macro gets phys add, __va does the inverse
+
+the Page global Directory is still stored in swapper_pg_dir, it is initalized by paging_init function
+    invokes pagetable_init
+
+    the x86 version is different, pagetable_init dispatches to permanent_kmaps_init with swapper_pg_dir as a parameter
+
+    page_table_range_init_count finds out how many page table entries are needed
+    
+    page_table_range_init basically iterates all possible pointers in a pgd and creates a pmd, and then iterates all possible pointers in the pmd. If for some reason this memory was already allocated, the old memory gets moved outside of the kernel memory range and assigned to a different page directory, while the memory is then allocated for the kernel with supervisor flags and large paging.
+
+At least 128 MB of the GIG that the kernel allocates is Fix-Mapped (The physical memory is not a set offset from 0xc0000000). CLARIFY THIS
+
+### CACHING ###
+
+The most frequently used fields of a data structure are placed at a low offset so they can fit into cache together
+
+When allocating data structures, the kernel tries to store each of them so that all cache lines are used uniformly.
+
+modern 80x86 processors do cache syncing at the hardware level.
+
+The kernel decides when a mapping between linear and physical addresses are no longer valid, so it handles the TLB
+
+TLBs are flushed when corresponding memory has been changed, they can be flushed globally, locally, in a range, in the kernel or for a process, or just a page.
+
+on intel processors, TLB is invalidated in two ways:
+   non-global entries are automatically flushed on changes to cr3
+   invlpg invalidates a single TLB entry mapping a given linear address
+
+generally, a switch in process implies a TLB flush
+
+two cases allow the kernel to avoid flush
+    switch from two regularly running processes that share the same set of page tables
+    switch between a regular process and a kernel thread.
+
+in multiprocessor mode, lazy TLB mode is implemented. When a processor in lazy TLB mode recieves a request to clear TLB entries, it doesn't. Either the CPU delays and eventually switches to a user mode process and automatically flushes, or a process with the same page table entries is called, and the cpu must then retroactively invalidate the requested entries.
+
+cpu_tlbstate is either TLBSTATE_OK or TLBSTATE_LAZY. When executing a kernel thread, the cpu sets cpu_tlbstate to LAZY, when a cpu needs to flush particular page tables, it issues an interrupt to all cpus listed in cpu_vm_mask field of corresponding mm (memory descriptor)
+
+When a cpu in lazy mode recieves an interrupt related to TLB flushing, the kernel does not flush, and instead removes CPU from the cpu_vm_mask field of mm descriptor. Then if a switch to a process that uses an overlapping subset of page tables occurs, __flush_tlb() is issued.
+
+
+
+
+    
