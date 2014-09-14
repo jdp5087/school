@@ -1,0 +1,49 @@
+###1.38###
+PROMPT:
+------------------------------------------------------------
+Exercise 1.38.  In 1737, the Swiss mathematician Leonhard Euler published a memoir De Fractionibus Continuis, which included a continued fraction expansion for e - 2, where e is the base of the natural logarithms. In this fraction, the Ni are all 1, and the Di are successively 1, 2, 1, 1, 4, 1, 1, 6, 1, 1, 8, .... Write a program that uses your cont-frac procedure from exercise 1.37 to approximate e, based on Euler's expansion.
+------------------------------------------------------------
+
+(define (cont-frac n d k)
+  (define (cont-frac-iter i result)
+    (if (= i 0)
+	result
+	(cont-frac-iter (- i 1)
+			(/ (n i)
+			   (+ (d i) result)))))
+  (cont-frac-iter k 0))
+
+(define (e)
+  (cont-frac (lambda (i) 1.0)
+	     (lambda (i) )))
+
+
+(define (change-values x)
+  (cons (cons (+ 1 (car (car x)))
+	      (+ 1 (cdr (car x))))
+	(cons (+ 1 (car (cdr x)))
+	      0)))
+
+(define (test x)
+  (display x)
+  (change-values x)
+  (test x))
+
+(test (cons (cons 0 1) (cons 2 3)))
+
+
+(define (d i)
+  (define (d-iter a b c count)
+    (if (> count i)
+	c
+	(if (not (= a 1))
+	    (d-iter b c (+ a b c) (+ count 1))
+	    (d-iter b c 1 (+ count 1)))))
+  (d-iter 1 0 1 1))
+
+(d 14)
+		 
+	
+	     
+	  
+

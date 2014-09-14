@@ -1,0 +1,19 @@
+import numpy as np
+
+def arrayPow(arr, n, result=1):
+    if n == 1:
+        return result
+    else:
+        return arrayPow(arr, n-1, arr*result)
+
+a1 = np.array([
+        [0, 1, 1, 1],
+        [1, 0, 1, 0],
+        [1, 1, 0, 1],
+        [1, 0, 1, 0]
+        ]
+
+print(arrayPow(a1, 2))
+
+              
+        

@@ -1,0 +1,35 @@
+from parse import ConvertMessage
+from openKeys import OpenKeys
+from genKeys import FastPrime
+
+import sys
+
+counter = 0
+for line in sys.stdin:
+    if counter == 0:
+        mPrime = int(line)
+    counter += 1
+
+
+class Decrypt:
+
+    def __init__(self, key):
+        self.d, self.n = key
+
+    def decryptMessage(self, mPrime):
+        num = FastPrime(self.n, 1).expmod(mPrime, self.d)
+        i = 0
+        while True:
+            m = ConvertMessage(num+(self.n*i)).getString()
+            if m.find('Gary') != -1:
+                print m
+                i += 1
+                
+
+
+
+
+decrypt = Decrypt(OpenKeys('secret.txt').readKey())
+
+decrypt.decryptMessage(mPrime)
+

@@ -1,0 +1,85 @@
+process is an instance of a program in execution
+	a set of data structures tracking how far execution has progressed
+
+each process has once parent
+
+a parent and its child can share program code, but have seperate stacks and heaps
+
+multithreaded programs - user programs having many relatively independent execution flows sharing a large portion of application data
+
+usually accomplished through library functions - pthreads - POSIX threads
+
+avoid one thread blocking another through non-blocking techniques
+
+lightweight processes - share some resources such as address space and open files etc.
+
+
+SMP - Symmetric Multi-Processing
+
+struct task struct defined in include/linux/sched.h
+
+following flags are mutually exclusive
+	  TASK_RUNNING - executing on a CPU or waiting to be executed
+	  TASK_INTERRUPTIBLE - Sleeping until a ocndition comes true
+	  TASK_UNINTERRUPTIBLE - sleeping, but an interrupt or signal leaves state unchanged
+	  		      valuable when state must be uninterrupted until a condition becomes true
+			      an example is when a hardware device driver is running, as interruption
+			      would leave hardware in an uninterruptible state
+	TASK_STOPPED - caused by SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU
+
+	TASK_TRACED - stopped by a debugger
+	EXIT_ZOMBIE - process has terminated, but parent hasn't called wait4() or waitpid()
+	EXIT_DEAD - final state, being removed by the system
+
+	set_task_state and set_current_state are used to set state of a process and process currently being used, respectively (MUST BE USED FOR CORRECT CONDITION)
+
+lightweight processes have their own task_struct even though many data structures are shared.
+
+most references to processes within the kernel are through process descriptor pointers
+
+PIDs are sequential up to PID_MAX_DEFAULT (32,767) 4,194,303 in 64 bit archs
+
+A page holds 32,767 bits 64 bit architectures will allocate more pages if needed -- never released
+
+every process or LWP is uniquely identifiable
+
+Thread groups are assigned a PID of the thread group leader (first LWP in group)
+
+getpid() returns thread group, behaves as expected on regular processes, and gives tgid for threads
+
+process descriptors are stored in dynamic memory, not in allocated kernel mem
+
+
+kernel stores thread_info and the Kernel Mode process stack in two page frames (8K). The first page is aligned to an address that is a multiple of 2**13, which can cause fragmentation in dynamic memory
+       on x86, this can be configured to fit one page instead to avoid quite as much fragmentation.
+
+each process has a kernel mode stack, but 8K is more than enough to hold both thread_info and the stack.
+
+the kernel can efficiently find the thread_info structure by masking the lowest 13 bits (or 12 if 4K alloced for both)
+
+get current rpocess through current macro, which is located by finding
+
+current == current_thread_info()->task 
+
+current_thread_info() == kernel stack pointer + offset - thread_size
+
+access process descriptor fields through current macro (current->pid for example)
+
+previous linux versions didnt store thread_info and the kernel stack togther, and a global current var or array had to be maintained
+
+linux has its own definition of double linked lists
+
+task_struct contains a tasks field which is a list_head struct whos prev and next do what you think they might
+
+also, the head of the process list is in the init_task task_struct, which is process 0, the swapper.
+
+for_each_process defines the looping part, while the programmer supplies loop body
+
+linux 2.6 + greater? can scan runable processes in constant time.
+
+
+
+
+
+
+       

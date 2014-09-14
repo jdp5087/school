@@ -1,0 +1,9 @@
+###PROBLEM 1###
+
+(a) 
+
+SELECT count(*)
+FROM frequency
+WHERE frequency.docid = "10398_txt_earn";
+
+138 records

@@ -1,0 +1,9 @@
+(define (run-game os)
+  (if (string=? os "w")
+      (cd "c:/school/mit/6-001/projects/project2")
+      (cd "~/Documents/school/mit/6-001/projects/project2"))
+  (load "../../lib.scm")
+  (load "prompt.scm"))
+
+
+(run-tests "w")

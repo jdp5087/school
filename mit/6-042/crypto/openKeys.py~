@@ -1,0 +1,9 @@
+class OpenKeys:
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def readKey(self):
+        with open(filename, 'r') as f:
+            lines = f.readlines()
+            return lines.strip().split(',')
