@@ -1,0 +1,127 @@
+kernel schedules threads, not processes
+
+linux does not differentiate between threads and processes, it just defines a special type LWP I presume
+
+processes provide two kinds of virtualization:
+	  illusion that processor monopolises both the CPU (Scheduling) and Memory (Memory Management)
+
+process is created by fork()
+	fork() returns twice, once in parent and once in child
+	exec() to start a new child program
+
+fork() is implemented by clone()
+
+program exits by the exit() system call -- this terminates the process and frees resources
+
+parent can wait for child with wait4() or waitpid()
+
+processes are referred to as tasks in linux interals
+
+circular task lists holds all processes
+
+each element is a process descriptor
+
+slab allocated provides object reuse and cache coloring
+
+thread_info lives at the bottom of the stack and contains:
+task, exec_domain, flags, status, cpu, and preempt_count, 
+addr_limit, restart_block, sysenter_return, uaccess_err
+
+an opaque type is a data type whose physical representation is unknown or irrelevant
+
+pid_t is the pid process type
+
+the size of pid_max can be set at /proc/sys/kernel/pid_max
+
+inside the kernel all references to processes are typically through pointers to task_struct
+
+the current macro returns the currently executing task
+
+x86 must use kernel stack to locate thread_info, which can access its task attribute to return current
+
+PPC architectures have a register that holds a reference to current task struct
+
+from sched.h
+
+#define TASK_RUNNING		0
+#define TASK_INTERRUPTIBLE	1
+#define TASK_UNINTERRUPTIBLE	2
+#define __TASK_STOPPED		4
+#define __TASK_TRACED		8
+/* in tsk->exit_state */
+#define EXIT_DEAD		16
+#define EXIT_ZOMBIE		32
+#define EXIT_TRACE		(EXIT_ZOMBIE | EXIT_DEAD)
+/* in tsk->state again */
+#define TASK_DEAD		64
+#define TASK_WAKEKILL		128
+#define TASK_WAKING		256
+#define TASK_PARKED		512
+#define TASK_STATE_MAX		1024
+
+
+TASK_RUNNING - either running or on a run-queue
+TASK_INTERRUPTIBLE -- process is sleeping
+TASK_UNINTERRUPTIBLE -- sleeping but won't wake up on a signal
+__TASK_TRACED -- being traced (debugged usually)
+__TASK_STOPPED -- Not running and ineligible to run
+
+schedule() starts running a task with context_switch() either the task exits, or goes to sleep (TASK_INTERRUTIBLE OR TASK_UNINTERRUPTIBLE).
+
+change a task state through set_task_state(task, state);
+on SMP provides a memory barrier
+
+set_current_state(state) is a synonym without the task arg. Locks are generated through in arch specific code,
+in x86, by macros that dump assembly within asm volatile() assembly functions. These locks are referred to as "memory barriers"
+
+normal program execution -- user space
+system call or exception -- kernel space, kernel is executing on behalf of process "in process context"
+
+ALL ACCESS TO KERNEL-SPACE IS THROUGH SYSTEM CALLS AND EXCEPTION HANDLERS
+
+all processes are children of init, which has a pid of 1
+
+list_for_each takes a start point and creates the for (...) part of a foor loop.
+list_entry(ptr, type, member); returns container_of the pointer
+
+task_structs store lists of children, pointers to parent and real_parent (figure out the difference) and sibling, also group leader for thread groups
+
+get next task:
+task_entry(task->tasks.next, struct task_struct, tasks); == next_task(task)
+get prev task:
+task_entry(task->tasks.prev, struct task_struct, tasks); == prev_task(task)
+
+for_each_process(task) iterates entire task list
+
+after fork(), child and parent are identical EXCEPT FOR:
+      pid, ppid(parent's process id), and inherited pending signals and other resources and statistics
+
+Copy-On-Write -- after fork() processes share resources until a write, when they each recieve their own unique copy
+
+the only overhead created by fork() is the duplication of parent's page tables and creation of a process descriptor
+
+fork() vfork() and __clone() call clone(), which calls do_fork(), which does interesting work in copy_process
+
+dup_task_struct creates a new stack, thread_info structure, and a new task_struct
+
+since thread_groups share signals, a detached thread can only be copied as a member of the thread group
+
+process wont be copied if the process being copied has shared virtual memory and shared signal handlers and blocked signals
+
+global and container inits are not allowed to create siblings
+
+start on page 32 LKD Forking && kernel/fork.c
+
+
+
+
+
+
+
+
+
+
+
+
+
+
