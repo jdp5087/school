@@ -112,6 +112,58 @@ global and container inits are not allowed to create siblings
 
 start on page 32 LKD Forking && kernel/fork.c
 
+capable checks whether superuser priviledges flag is true
+
+I don't see any reference to copy_flags as referenced by love, might be a different function
+
+so basically in copy process, the struct is copied, some process specific statistics are cleared, common files, signal handlers, address space, and others are transferred, the process is put to sleep in an uninterruptible state, a new pid is allocated, etc.
+
+
+in vfork, the parent waits for the child process to either exit or call exec
+child executes as a single thread in parent adress space
+      only benefit is that the parent page tables are not copied, otherwise sort of redundant due to copy-on-write
+
+in Linux, threads are really just processes that share resources. They are called lightweight processes. Other operating systems explicitly implement threads.
+
+calls to do_fork by differing functions:
+
+fork:
+clone(SIGCHLD, 0);
+
+vfork:
+clone(CLONE_VFORK | CLONE_VM | SIGCHLD, 0);
+
+thread:
+clone(CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND, 0);
+
+aka address space, filesystem resources, file descriptors, and signal handlers are shared.
+
+A full list of the clone flags is in include/linux/sched.h
+
+kernel threads do not have their own address spaces (mm_struct attribute is NULL)
+       operate only in kernel space, no context switching
+       still schedulable and preemptable
+
+kernel threads handle flush tasks and ksoftirqd
+
+they can be seen with ps -ef
+
+created on system boot by other kernel threads
+
+forking of all new kernel threads is handled by kthreadds
+
+in kthreadd : what does "for (;;)" do?
+
+a kthread must be created and then started with wake_up_process
+
+kthread_stop(struct task_struct *k); stops a kthread with the task_struct of the given address
+
+
+
+
+
+
+
 
 
 
