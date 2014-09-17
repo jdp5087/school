@@ -1,0 +1,114 @@
+
+scheduler divides finite resources of processing time between processes -- basis of multitasking operating system.
+
+linux uses preemptive multitasking
+
+time a process runs is usually predetermined, and is called a timeslice. -- linux does not employ timeslices, per se
+
+the new scheduler of linux 2.5 was called O(1) scheduler
+    great for large server loads
+    shortcomings - interactive processes
+    poor on desktops with interaction
+
+Rotating Staircase Deadline scheduler introducted fair scheduling
+
+Linux calls its scheduler the Completely Fair Scheduler -- CFS
+
+policy is the behavior of a scheduler, and determines what runs when
+       determines overall feel of a system
+       responsible for optimally used processor time
+
+processes are either:
+	  I/O bound -- spends majority of time waiting for IO -- IO meaning any blockable resource
+	      	       such as keyboard input, mouse, network IO, disk IO
+	  processor bound -- spend much time executing code
+	  	    	     tend to run until preempted
+			     e.g. ssh-keygen
+
+X Window server is both IO and processor bound
+	  	    
+scheduler must satisfy two conflicting goals:
+	  low latency
+	  high throughput
+
+Linux favors IO bound, but is creative enough to not neglect processor bound processes
+
+nice value - higher means lower priority
+     control over proportion of the timeslice -- see nice values with ps -el
+
+real-time priority -- default ranges from 0 to 99 higher is more priority
+
+nice and real-time are in disjoin value spaces, with real-time having a higher priority than normal processes
+     seen with ps -eo state,uid,ppid,rtprio,time,comm
+
+timeslice -- how long a task can run until interrupted
+
+too short of a timeslice is suboptimal because of larger switching overhead
+
+too long and IO bound processes dont need the extra timeslice
+processor bound processes want a long timeslice -- keeps cache "hot"
+
+CFS assigns a proportion of the processor, which is a function of the load of the system
+
+further affected by each processes nice value, which acts a weight, changing the proportion each process recieves
+
+when a process enters an eligible state, whether or not it is run is a function of the proportion of the processor the newly runnable process has already consumed more of a proportion than the currently running process.
+
+CFS is modular, allowing different algorithms to schedule different types of processes.
+    called scheduler classes
+    base scheduler iterates scheduler classes from highest to lowest, highest class that has a runnable task wins
+
+DISCUSSION OF TRADITIONAL UNIX SCHEDULERS
+
+mapping nice values into timeslices requires a decision about what absolute timeslice to allot each nice value
+
+with high priority being assigned higher time slices, the proportion of processor time is totally dependant on what processes currently exist. Furthermore, since many high priority processes are IO bound, this is actually the opposite behavior of desired, becuase these high priority tasks only need a short running time, while "nice" processes are often processor bound, and prefer longer timeslices.
+
+
+problem 2 -- if a process is decremented from 100 ms to 95 ms timeslice, that is very marginally less timeslice, whereas a process that is decremented from 10 to 5 ms loses half of its running time!
+
+timer ticks limit the possible values that timeslices can be assigned to (this varies accross systems, too)
+
+adding priority to newly woken process improves interaction but allows sleep/wake use cases to game the schedulr
+
+fundamental issue is that absolute timeslices yield a constant switching rate but variable fairness
+
+CFS yields constant fairness but a variable switching rate
+
+perfect multitasking would assign each process 1/n time, with each task running simultaneously
+	impractical due to overhead of switching costs not to mention impossible
+
+CFS doesn't assign timeslices, instead it weights a process according to its nice value
+
+each process then runs for a "timeslice" proportional to its weight divided by the total weight of all runnable threads
+
+CFS sets a target for its approximation of the infinitely small scheduling duration in perfect multitasking
+    called targeted latency
+
+default minimum timeslice is 1 ms, called minimum granularity
+
+in this scheme, absolute nice values no longer affect scheduling decisions
+
+CFS can be unfair if the proportion of processes becomes large enough that any given process recieves a proportion of less than 1, for instance if there were 20 processes with target latency of >20, However, the system was designed with this tradeoff explicitly acknowledged.
+
+four components of CFS implementation will be discussed
+     time accounting
+     process selection
+     the scheduler entry point
+     sleeping and waking up
+
+schedule entity structure: struct sched_entity
+
+the scheduler entity is embedded in the task_struct under name se
+
+virtual runtime - actual runtime normalized by number of runnable processes -- nanoseconds
+	choice of nanoseconds allows decoupling from processor tick
+	helps approximate perfect multiprocessing
+
+
+
+location of kernel/sched_fair.c has changed to kernel/sched/fair.c
+
+in update_curr, it looks like the work is no longer being done by __update_cur
+__update_cur used to cal calc_delta_fair, which is now called from update_cur, but the match is completely
+different now. suffice it to say that niceness is exponential, and thats all for now

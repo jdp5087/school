@@ -21,7 +21,7 @@ circular task lists holds all processes
 
 each element is a process descriptor
 
-slab allocated provides object reuse and cache coloring
+slab allocator provides object reuse and cache coloring
 
 thread_info lives at the bottom of the stack and contains:
 task, exec_domain, flags, status, cpu, and preempt_count, 
@@ -192,84 +192,3 @@ each child process recieves the new reaper as its parent, and real-parent if the
 then all processes that are dead are released.
 
 init routinely calls wait(), cleaning up any zombies it inherits through this process
-
-scheduler divides finite resources of processing time between processes -- basis of multitasking operating system.
-
-linux uses preemptive multitasking
-
-time a process runs is usually predetermined, and is called a timeslice. -- linux does not employ timeslices, per se
-
-the new scheduler of linux 2.5 was called O(1) scheduler
-    great for large server loads
-    shortcomings - interactive processes
-    poor on desktops with interaction
-
-Rotating Staircase Deadline scheduler introducted fair scheduling
-
-Linux calls its scheduler the Completely Fair Scheduler -- CFS
-
-policy is the behavior of a scheduler, and determines what runs when
-       determines overall feel of a system
-       responsible for optimally used processor time
-
-processes are either:
-	  I/O bound -- spends majority of time waiting for IO -- IO meaning any blockable resource
-	      	       such as keyboard input, mouse, network IO, disk IO
-	  processor bound -- spend much time executing code
-	  	    	     tend to run until preempted
-			     e.g. ssh-keygen
-
-X Window server is both IO and processor bound
-	  	    
-scheduler must satisfy two conflicting goals:
-	  low latency
-	  high throughput
-
-Linux favors IO bound, but is creative enough to not neglect processor bound processes
-
-nice value - higher means lower priority
-     control over proportion of the timeslice -- see nice values with ps -el
-
-real-time priority -- default ranges from 0 to 99 higher is more priority
-
-nice and real-time are in disjoin value spaces, with real-time having a higher priority than normal processes
-     seen with ps -eo state,uid,ppid,rtprio,time,comm
-
-timeslice -- how long a task can run until interrupted
-
-too short of a timeslice is suboptimal because of larger switching overhead
-
-too long and IO bound processes dont need the extra timeslice
-processor bound processes want a long timeslice -- keeps cache "hot"
-
-CFS assigns a proportion of the processor, which is a function of the load of the system
-
-further affected by each processes nice value, which acts a weight, changing the proportion each process recieves
-
-when a process enters an eligible state, whether or not it is run is a function of the proportion of the processor the newly runnable process has already consumed more of a proportion than the currently running process.
-
-CFS is modular, allowing different algorithms to schedule different types of processes.
-    called scheduler classes
-    base scheduler iterates scheduler classes from highest to lowest, highest class that has a runnable task wins
-
-DISCUSSION OF TRADITIONAL UNIX SCHEDULERS
-
-mapping nice values into timeslices requires a decision about what absolute timeslice to allot each nice value
-
-with high priority being assigned higher time slices, the proportion of processor time is totally dependant on what processes currently exist. Furthermore, since many high priority processes are IO bound, this is actually the opposite behavior of desired, becuase these high priority tasks only need a short running time, while "nice" processes are often processor bound, and prefer longer timeslices.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
