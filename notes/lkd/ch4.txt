@@ -99,7 +99,7 @@ four components of CFS implementation will be discussed
 
 schedule entity structure: struct sched_entity
 
-the scheduler entity is embedded in the task_struct under name se
+the scheduler entity is embedded in the task_struct (process descriptor) under name se
 
 virtual runtime - actual runtime normalized by number of runnable processes -- nanoseconds
 	choice of nanoseconds allows decoupling from processor tick
@@ -110,7 +110,7 @@ virtual runtime - actual runtime normalized by number of runnable processes -- n
 location of kernel/sched_fair.c has changed to kernel/sched/fair.c
 
 in update_curr, it looks like the work is no longer being done by __update_cur
-__update_cur used to cal calc_delta_fair, which is now called from update_cur, but the match is completely
+__update_cur used to cal calc_delta_fair, which is now called from update_cur, but the math is completely
 different now. suffice it to say that niceness is exponential, and thats all for now
 
 update_curr() is called by the system timer or whenever a process blocks or becomes unrunable
@@ -125,6 +125,59 @@ cfs_rq stands for Completely Fair Scheduler Run Queue
 
 the leftmost node (min vruntime) is cached for O(1) lookups
     if this cached node is empty, there are no runable processes, and the scheduler schedules the idle task
+
+enqueue_entity basically updates vruntime of se, calls update_curr on the currently running entity, does accounting, and then inserts the entity into the cfs_rq. The __enqueue_entry procedure is basically a vanilla RB insert but it caches the leftmost entry.
+
+when a process blocks (becomes unrunnable) or terminates (ceases to exist), we remove the process from the cfs_rq.
+
+same thing: call update_curr, which will track how long the object was run in real-time, as well as vruntime (fair_delta)
+dequeue_entity_load_avg: remove entities load average from the child load_average of rfs_rq
+update_stats_dequeue: if the task waiting is being dequeued, mark the end of the wait period
+CONFIG_SCHEDSTATS: can't locate where it is defined
+cfs_runqueue_of: it looks like there are multiple cfs_rq objects, this returns the cfs_rq of an se
+clear_buddies: depending on whether cfs_rq->(last, next, or skip) = se, iterate up the hierarchy, get the cfs_rq of the se, and if se== last, clear it
+__dequeue_entity: basically an rb_delete, that if the deleted se is leftmost, make leftmost rb_next
+update_min_vruntime: sets the vruntime of cfs_rq->vruntime to the minimum runtime
+
+it appears that runqueues are separated by cpu
+
+update_cfs_shares updates the total shares that a taskgroup recieves
+
+__schedule:
+
+pick_next_task iterates through each scheduler class from highest priority classes down and picks the highest priority process in that class, if it has a process.
+	       so if the scheduler class is cfs, then we pick the leftmost value in the rbtree of fair procs
+
+a sleeping task is ALWAYS waiting on a particular event
+
+common reasons for sleeping:
+       waiting on IO
+       waiting for a contended semaphore
+       other hardware event
+
+behavior is the same regardless of the case:
+	 task marks itself as sleeping, puts itself on waitqueue, removes itself from rb runnable tree, calls chedule
+
+waking up is opposite:
+       marks itself as runnable, removed from waitqueue, adds itself to runnable rbtree
+
+two states are associated with sleeping, as before:
+    TASK_INTERRUPTABLE
+    TASK_UNINTERRUPTABLE
+
+waitqueue is a list created statically through DECLARE_WAITQUEUE() or dynamically through init_waitqueue_head, which is a list wake_queue_head_t
+processes put themselves on this list and mark themselves as not runnable
+
+
+
+
+
+
+
+
+
+
+
 
 
 
