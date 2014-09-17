@@ -112,3 +112,19 @@ location of kernel/sched_fair.c has changed to kernel/sched/fair.c
 in update_curr, it looks like the work is no longer being done by __update_cur
 __update_cur used to cal calc_delta_fair, which is now called from update_cur, but the match is completely
 different now. suffice it to say that niceness is exponential, and thats all for now
+
+update_curr() is called by the system timer or whenever a process blocks or becomes unrunable
+
+this way, vruntime is an accurate measure of the runtime of a given process and an indicator of what process should run next
+
+CFS simply picks the process with the smallest vruntime
+
+CFS uses a red-black tree to manage and find processes with minimum run time
+
+cfs_rq stands for Completely Fair Scheduler Run Queue
+
+the leftmost node (min vruntime) is cached for O(1) lookups
+    if this cached node is empty, there are no runable processes, and the scheduler schedules the idle task
+
+
+
