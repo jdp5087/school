@@ -191,15 +191,19 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 	struct fsnotify_event *kevent;
 	char __user *start;
 	int ret;
+	// create a wait queue entry
 	DEFINE_WAIT(wait);
 
 	start = buf;
 	group = file->private_data;
-
+	// since the condition check is complicated, we just quit through break statements
 	while (1) {
+	      	  // looks like they skip add_to_queue and allow prepare_to_wait to do the work
+		  // They made the state interruptible
 		prepare_to_wait(&group->notification_waitq, &wait, TASK_INTERRUPTIBLE);
 
 		mutex_lock(&group->notification_mutex);
+		// get an event for the notification waitgroup
 		kevent = get_one_event(group, count);
 		mutex_unlock(&group->notification_mutex);
 
@@ -213,26 +217,88 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 			fsnotify_destroy_event(group, kevent);
 			if (ret < 0)
 				break;
+			// this is interesting, shifts the buffer
 			buf += ret;
 			count -= ret;
 			continue;
 		}
-
+		// we don't make it to here if there was an event
 		ret = -EAGAIN;
 		if (file->f_flags & O_NONBLOCK)
 			break;
 		ret = -ERESTARTSYS;
+
+		// not sure here
 		if (signal_pending(current))
 			break;
-
+		// if the buffer changed at all, we are done
 		if (start != buf)
 			break;
-
+		// go to sleep
 		schedule();
 	}
-
+	// set status to TASK_RUNNING, removes group from wait queue
 	finish_wait(&group->notification_waitq, &wait);
 	if (start != buf && ret != -EFAULT)
 		ret = buf - start;
 	return ret;
 }
+
+wake_up wakes all tasks on a given wait queue
+
+calls try_to_wake_up, which sets task to task running, adds to rbtree, and sets need_resched if task is higher priority than current task
+
+the code that causes the event typically calls wake_up, for instance the vfs usually calls wake_up when data arrives from hard disk
+
+schedule itself calls deactivate_task to remove a task from the runqueue
+
+so there are two cases:
+
+first, the task could be awoken, in which case the task is set to task running and the task executes its signal handler to determine if the event was the one being waited for. if it wasn't the task goes back to sleep
+
+if it was, the system wakes up all tasks on the waitqueue with try to wake up, which sets tasks to runnable, adds the task to the rbtree, tags need_resched if it applies, and then removes the task from the waitqueue
+
+why does __wake_up need a spinlock?
+    it looks like a spinlock disables preemption, in __raw_spinlock_irqsave() I'll come back to this
+
+it appears that each sleeping task in the wait_queue stores a function to wake up with, which could possible normally be try_to_wake_up
+
+context switching occurs whenever a new process has been selected to run. it does two basic jobs
+	switch_mm to switch to the virtual memory mapping for the new process
+	switch_to, which switches the processor state the new process
+
+preemption is basically implemented through the needs_resched flag of a process.
+	   this flag is set by scheduler_tick, or try_to_wake_up if a process has higher priority than the running task
+
+functions for manipulating needs_resched
+	  set_tsk_need_resched
+	  clear_tsk_need_resched
+	  need_resched
+
+it is much faster to access this value as a single bit within a flag variable of the thread_info of the currently running process than globally, because the thread_info struct is likely to be cache hot
+
+interestingly, context_switch is an inline function
+
+prepare_task_switch appears to just be accounting functions
+
+context_switch calls arch_start_context_switch, which does something for paravirt, and I'm not going to get side-tracked
+
+if the next process does not have an mm struct, the next->active struct is set to the oldmm. Then the oldmm mmcount is inc'ed and we enter_lazy_tlb
+
+otherwise, switch_mm to new task's mm
+
+if CONFIG_SMP
+prepare processor for context switch
+tlbstate set to TLBSTATE_OK, but then switched???
+the tlbstate is set to the next process
+
+set the cpu mask
+load cr3 with the pgd for next process
+flush tlb
+load the new Local Descriptor Table if prev->context.ldt != next->context.ldt
+
+BUG_ON is basically an assertion that printk's and then panic()s
+
+if prev == next
+if CONFIG_SMP, the kernel will panic if the current cpu's tlbstate doesn't match next, aka that doesnt make sense at all
+since irq is disabled during schedule, and SMP is enabled, we know that this case occurs when the cpu was in tlb lazy mode, so the context switch implies that we must flush tlb, because we are running a new user space process?? CHECK THESE ASSUMPTIONS WHEN YOU KNOW MORE
