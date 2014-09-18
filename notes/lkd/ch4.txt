@@ -168,16 +168,71 @@ two states are associated with sleeping, as before:
 waitqueue is a list created statically through DECLARE_WAITQUEUE() or dynamically through init_waitqueue_head, which is a list wake_queue_head_t
 processes put themselves on this list and mark themselves as not runnable
 
+how to properly sleep:
+    create a wait queue entry -- DEFINE_WAIT(wait);
+    add_wait_queue(q, &wait);
+    loop with wake up condition as the predicate
+    prepare_to_wait(&q, &wait, *DESIRED_STATE*);
+    if (signal_pending(current))
+       handle signal
+    schedule() -- END OF LOOP
+    
+    finish_wait
 
+I am going to try taking notes within functions to see if it helps
 
+from fs/notify/inotify/inotify_user.c
 
+static ssize_t inotify_read(struct file *file, char __user *buf,
+			    size_t count, loff_t *pos)
+{
+	
+	struct fsnotify_group *group;
+	struct fsnotify_event *kevent;
+	char __user *start;
+	int ret;
+	DEFINE_WAIT(wait);
 
+	start = buf;
+	group = file->private_data;
 
+	while (1) {
+		prepare_to_wait(&group->notification_waitq, &wait, TASK_INTERRUPTIBLE);
 
+		mutex_lock(&group->notification_mutex);
+		kevent = get_one_event(group, count);
+		mutex_unlock(&group->notification_mutex);
 
+		pr_debug("%s: group=%p kevent=%p\n", __func__, group, kevent);
 
+		if (kevent) {
+			ret = PTR_ERR(kevent);
+			if (IS_ERR(kevent))
+				break;
+			ret = copy_event_to_user(group, kevent, buf);
+			fsnotify_destroy_event(group, kevent);
+			if (ret < 0)
+				break;
+			buf += ret;
+			count -= ret;
+			continue;
+		}
 
+		ret = -EAGAIN;
+		if (file->f_flags & O_NONBLOCK)
+			break;
+		ret = -ERESTARTSYS;
+		if (signal_pending(current))
+			break;
 
+		if (start != buf)
+			break;
 
+		schedule();
+	}
 
-
+	finish_wait(&group->notification_waitq, &wait);
+	if (start != buf && ret != -EFAULT)
+		ret = buf - start;
+	return ret;
+}
