@@ -302,3 +302,89 @@ BUG_ON is basically an assertion that printk's and then panic()s
 if prev == next
 if CONFIG_SMP, the kernel will panic if the current cpu's tlbstate doesn't match next, aka that doesnt make sense at all
 since irq is disabled during schedule, and SMP is enabled, we know that this case occurs when the cpu was in tlb lazy mode, so the context switch implies that we must flush tlb, because we are running a new user space process?? CHECK THESE ASSUMPTIONS WHEN YOU KNOW MORE
+
+switch_to loads all registers with saved values. Note that this is architecture specific
+
+anatomy of switch_to:
+{
+switch_to is a macro, which dumps the following asm instructions:
+	  immediately pushes flags, then base-pointer onto stack
+	  saves old esp, loads new esp
+	  saves old eip (one forward), loads new eip
+	  jumps to __switch_to
+	  after return from switch_to
+	  after all of those function calls, restore ebp and eflags, and all registers
+	  are officially in the correct state for next task
+	  it looks like the code after the 1: tag replaces the use of a ret to the caller of switch_to
+	  
+
+__switch_to:
+	prepare the floating-point unit for switch
+	load sp0 with tss of next task
+	save gs segment in prev->gs
+	load per-thread-Thread Local Storage descriptor (found in GDT)
+	restore IOPL
+	there could be a discrepancy between the preempt count if the current thread is being preempted
+	PREEMPT active, so we update the preempt count of the cpu to preempt count of next
+	do something with IO bitmaps and debug registers in __switch_to_xtra
+	arch_end_context_switch appears to be related to paravirt
+	write the location of the kernel stack onto current cpu
+	restore gs segment descriptor if needed
+	finish loading the floating point unit (restore maybe?)
+	write current task to be next_p (which is a task struct)
+}
+
+IOPL - IO privilege level
+
+side note on Task state segment (TSS)
+special structure in x86, used by kernel for task management
+stores the following information
+       register state
+       IO port permissions
+       Inner-level stack pointers
+       Previous TSS link
+and now we have it...The Task register holds a segment selector that points to a valid TSS segment descriptor, which resides in the GDT (cannot reside in LDT)
+
+tss_struct in linux:
+	   x86_tss, op_bitmap, emergency kernel stacks
+
+
+	   
+	
+
+
+
+
+user preemption occurs when the kernel is about to return to the user-space and need_resched flag is on
+     it is safe to either continue with current task, or switch
+
+user preemption can occur when returning from
+     user-space system call
+     user-space interrupt handler
+
+in nonpremptive kernels, kernel code runs until completion
+Linux on the other hand is fully preemptive - any task is preemptible so long as the kernel is in a safe state
+
+locks designate segments of code that are unsafe for preemption
+
+prempt_count is saved in each processes thread_info struct
+	     starts at 0 inc for each lock, dec for each release
+	     when 0, preemptible
+
+after an interrupt, if needs_resched is set and preempt_count is 0, then the scheduler is safe to choose a task of higher priority and perform a context switch. However, if prempt_count is greater than 0, then the lock is held and the current task continues to execute until its locks are released.
+      unlock code checks if need_resched is set
+
+kernel preemption can occur in these cases:
+       when an interrupt handler exits before returning to user space
+       when kernel code becomes preemptible again
+       if a task in the kernel explicity calls schedule
+       if a task in the kernel blocks (which results in a call to schedule)
+
+
+
+
+
+
+
+
+
