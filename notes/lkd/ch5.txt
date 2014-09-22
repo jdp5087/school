@@ -1,0 +1,191 @@
+SYSTEM CALLS -- CHAPTER 5
+
+System calls provide three functions:
+       layer of abstracton over hardware interface
+       security and stability
+       allows for virtualized system provided to processes -- if processes had free access to memory, cpus,
+       	      	  	      	     	      	 	      etc it would be impossible to properly manage
+							      memory, SMP, etc.
+
+only legal entry point into the kernel other than exceptions and traps
+
+Linux attempts to be POSIX and SUSv3 compliant
+
+interesting quote -- "Provide mechanism, not policy."
+
+sytem calls return long type
+from the c library
+     usually a negative return designates error
+     usually 0 designates success
+     if error, the value is written into global errno variable
+
+syscalls have a defined behavior
+
+asmlinkage directs the compiler to only search the stack for function args
+
+returns long for compatibility in both 32 and 64 bit systems
+
+sys_* is the naming convention
+
+each syscall is assigned a number that does not change
+
+sys_ni_syscall() is a not implemented system call -- used mainly when an old syscall is removed
+
+the system stores all syscalls in a syscall table, arch dependant.
+
+syscall table in arch/x86/syscalls/syscall_32.tbl
+
+system calls in linux are fast because of fast context switching and the implementation of system calls themselves
+
+system calls cause the system to switch to kernel mode, where system calls can be executed on behalf of the application
+
+an interrupt causes the system to switch to kernel mode to handle the interrupt with an interrupt handler
+the exception handler in this case is the system call handler.
+
+old way:
+    software interrupt number 128 (0x80)
+new way:
+    sysenter feature -- more specialized
+
+important thing is to know that the user-space causes an exception or trap to enter the kernel
+
+must pass system call number in eax
+
+ENOSYS -- function not implemented
+
+the sys_call_table is used to locate the system call
+
+ebx, ecx, edx, esi, and edi hold the first five args
+
+if 6 or more args are needed, one register holds the address to a location in user space where args are located
+
+return in eax
+
+
+system calls should do only one thing
+
+clean and simple interface with smallest possible number of arguments
+
+semantics must not change -- existing applications rely on consistency
+
+many system calls use flag arguments to address forward compatibility
+
+system calls must verify the legality and validity of parameters for the sake of security and stability
+       of special significance is checking the validity of pointers
+
+before following a pointer, system must ensure
+       pointer points to region in user-space, not kernel space
+       pointer points to region in process's address space
+       correct read/write permissions are enabled
+
+one of two methods will always be used to check pointers
+
+for writing, the method copy_to_user is provided, takes three params:
+    destination memory address in proc's address space
+    source pointer in kernel space
+    size in bytes of the data to copy
+
+for reading:
+    reads from the second param into the first param num of bytes in third
+
+EFAULT -- bad address, returned in case of bad address, returns number of bytes failed to copy
+
+copy_to_user and copy_from_user can both block
+
+capable with a valid capabilities flag returns whether or not the caller has proper capability
+
+reboot is used to demonstrate the use of the capable function
+       note that this has changed to a namespace capability
+       ns_capable checks if the process has the given capability, and if so grants superpriviliges to current->flags
+
+current_cred() -> rcu_dereference_protected -> __rcu_derefererence_protected
+	       used when update side locks prevent the value of the pointer from changing
+	       secure, somehow
+
+EPERM - invalid permissions error, I presume
+
+magic arguments are used so that reboot doesnt occur by accident
+
+there are many different arguments that influence the behavior of reboot, such as power off, halt, suspend, reboot using a previously loaded kernel
+
+device_shutdown 
+{
+shutdown walks a list of system devices backwards, shutting down each in turn
+it looks like this list may include both bus and device drivers, maybe others
+gets a lock on the kset list, then finds device and its parent, removes device from kset list
+gets a device lock on device and its parent
+gets a runtime_suspend on the device, and a runtime barrier
+calls shutdown through the device struct
+dont fully undstand the spinlock at the end
+}
+
+migrate to reboot
+{
+cpu_hotplug_disable
+makes sure that the reboot cpu is online, otherwise gets the first cpu online
+makes the first available cpu the only one accessible for the reboot process
+}
+
+syscore_shutdown
+{
+get a mutex lock on syscore_ops_list
+traverse the list backwards, calling ops->shutdown if present
+release mutex lock
+}
+
+machine_power_off
+{
+call power off on the power_off attribute of machine_ops struct
+}
+
+kernel restart is virtually identical to kernel_shutdown, except it calls restart in the machine_ops struct
+
+
+if the reboot procedure has it, it has the option to kexec (load a previously loaded kernel) or hibernate
+
+if none of the other options are avaialable, an invalid arguments error is raised
+
+the kernel is in process context during a system call (current->task that issued syscall)
+
+sytem calls are premptible just like user-space tasks. system calls can sleep and explicitly call schedule
+
+this introduces a need to ensure that syscalls are reentrant
+when a system call returns, control continues in system_call, which switches to userspace and continues execution of process
+
+
+steps to register a system call
+
+add entry in system call table
+for each supported architecture, define syscall number in <asm/unistd.h>
+compile syscall in kernel image -- as opposed to module
+
+syscall table usually in entry.S
+
+system calls should be somewhere in kernel directory, but where it varies, sys.c is a good candidate
+
+remember to use asmlinkage
+
+linux defines macros _syscalln(), where n is the number of arguments. Remember that the type gets mapped to the arg name, so seperate with macros e.g. _syscall1(long, foo)
+
+2 + 2xn parameters, first is return type, second is name, rest are args
+
+pros of syscalls
+     easy to implement and use
+     performance is fast on Linux
+cons
+	need a number
+	written in stone once in stable kernel
+	each architecture needs to register the syscall seperately
+	not easily used from scripts, cannot be accessed directly from the filesystem
+	hard to maintain a syscall outside of master kernel tree
+	
+alternatives
+	implement a device node and read() and write() to it. ioctl() to manipulate specific settings
+	semaphores can be manipulated as file descriptors
+	add the information as a file to the appropriate location in sysfs
+
+the real work is implementation of the system call itself
+
+
+
+

@@ -1,0 +1,14 @@
+GO LINE BY LINE AND WRITE WHAT EVERY UNFAMILIAR INSTRUCTION OR DIRECTIVE DOES
+
+no ops are meant to simply take up time, they are used for timing purposes, to force memory alignment, to prevent hazards, to occupy a branch delay slot, or to be replaced by active instruction later
+
+ASSEMBLY NOTES:
+#define ASM_CLAC							\
+	661: ASM_NOP3 ;							\
+	
+	.pushsection .altinstr_replacement, "ax" ;			\
+	662: __ASM_CLAC ;						\
+	.popsection ;							\
+	.pushsection .altinstructions, "a" ;				\
+	altinstruction_entry 661b, 662b, X86_FEATURE_SMAP, 3, 3 ;	\
+	.popsection

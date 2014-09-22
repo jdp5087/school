@@ -381,10 +381,23 @@ kernel preemption can occur in these cases:
        if a task in the kernel blocks (which results in a call to schedule)
 
 
+most system calls that interact with process priority are setters or getters for variables saved within a tasks task_struct
 
+the nice() system call sets static_prio and prio values in the task struct
 
+affinity is what processors a task is allowed to run on
+	 in linux hard affinity is enforced, with a bitmask cpus_allowed
+	 
+process inherits its parents affinity mask
 
+when a process changes its affinity, the kernel uses migration threads to push the task to a legal processor
 
+the load balancer pulls tasks only to an allowed processor
 
+sched_yield removes task from active array and puts it in the expired array
+
+real_time tasks never expire so they are an exception and are moved to the end of the priority list
+
+kernel code can use the yield function, which checks to make sure state is TASK_RUNNING, and then calls sched_yield
 
 

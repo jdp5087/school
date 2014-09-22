@@ -1,0 +1,276 @@
+DATA STRUCTURES
+
+singly and doubly linked lists, nothing crazy
+
+linux has both circular and non-circular double linked list
+
+circular doubly-linked lists are the most flexible
+
+they are best purposed where iteration of whole list is needed, along with dynamic insertion and deletion
+
+first element represented by the "head"
+
+in non-circular lists, the last element points to NULL for its next attribute
+
+in circular, the last element is delineated because it points to head
+
+
+define a linked list by embedding struct list_head
+
+extract an element through list_entry, which returns container_of(ptr, type, member)
+
+create a new list entry with INIT_LIST_HEAD which makes a circular reference to itself, this will be updated on insertion
+
+initialize list head with macro LIST_HEAD
+
+signatures:
+
+list_add(struct list_head *new, struct list_head *head);
+list_add_tail(struct list_head *new, struct list_head *head);
+
+remove a node from a list with list_del, note that the structure itself and its list_head still need to be freed if necessary
+
+you can delete a node from the list but keep the link itself with list_del_init(struct list_head *entry)
+
+move an element from one list to another:
+list_move(struct list_head *list1, struct list_head *list2) -- After list2 link
+
+list move_tail() same args -- before second link
+
+list_empty(struct list_head *head) -- empty list?
+
+list_splice and list_splice_init, stick a list into another list, and reinit, respectively
+
+can save dereferences if you already have next and prev by using internal macros with __ prefix
+
+example iteration
+
+struct list_head *p;
+struct fox *f;
+
+list_for_each(p, &fox_list) {
+	f = list_entry(p, struct fox, list);
+}
+
+even better:
+
+list_for_each_entry(pos, head, member)
+
+where pos is the list_entry
+
+backwards
+
+list_for_each_entry_reverse(pos, head, member)
+	you can use this for a LIFO if your linked list is being used as a stack
+
+
+
+list_for_each_entry_safe(pos, next, head, member)
+and list_for_each_entry_safe_reverse
+
+can safely remove pos
+
+locking may still be necessary! that is why the example uses mutex_lock() and mutex_unlock()
+
+see <linux/list.h> for the rest in include/linux/list.h
+
+
+QUEUES
+
+common programming pattern is producer and consumer
+producer creates data
+consumer reads output or consumes
+
+kfifo defined in <linux/kfifo.h>
+
+two offsets into a queue, an in-offset and an out-offset out is always less than or equal to in
+
+in (enqueue) copies data into the queue -- in-offset is incremented by amount enqueued
+out (dequeue) copies data out -- out-offset is incremented by amount dequeued
+
+
+well, kfifos have been changed since the writing of this book, so I'll just do it the old-fashioned way and take some notes as I go.
+
+actually, the book may very well be up-to-date, it looks like git blame shows aug 2010 for most of kfifo.h
+
+Looks like kfifos can be declared as either a pointer or an actual array
+
+__is_kfifo_ptr distinguishes between a ptr kfifo and a real kfifo
+
+DECLARE_PTR_KFIFO and DECLARE_KFIFO do exactly what they sound like
+
+INIT_KFIFO initializes a declared kfifo
+
+DEFINE_KFIFO declares and initializes kfifo
+
+kfifo_initialized predicate reports whether initialized
+
+#define kfifo_reset(fifo) \
+(void)({ \
+	typeof((fifo) + 1) __tmp = (fifo); \
+	__tmp->kfifo.in = __tmp->kfifo.out = 0; \
+})
+
+interesting, I wonder what the typeof((fifo) + 1) is doing...
+the semantics are pretty obvious though
+
+kfifo_reset_out moves out to match in
+
+useful stuff like kfifo_len, kfifo_is_empty, kfifo_is_full, kfifo_avail (room available)
+
+kfifo_peek_len gives the length of the next record
+
+initialize a kfifo with
+
+struct kfifo fifo;
+int ret;
+
+ret = kfifo_alloc(&fifo, PAGE_SIZE, GFP_KERNEL);
+if (ret)
+	return ret;
+
+gfp_mask will be discussed in chapter 12
+
+kfifos must have a size that is a power of 2
+
+kfifo_in(fifo, buf, n) -- if less than n bytes are free, copy up to avail
+kfifo_out(fifo, buf, n)
+kfifo_out_peek(fifo, to, len, offset) -- offset designates an index into the queue
+
+useful functions kfifo_size, kfifo_len, kfifo_avail -- all inline
+
+kfifo_rest, kfifo_free -- obvious
+
+
+linux provides a mapping from unique identification numbers (UID) to a pointer (usually a structure of some sort)
+
+init an idr
+
+struct idr id_huh;
+idr_init(&id_huh);
+
+it looks like idr may be based on a radix tree. The tree needs to be resized before adding a new entry, so we call
+
+int idr_pre_get(struct idr *idp, gfp_t gfp_mask);
+
+you do not need to syncronize concurrent access to this function
+
+returns 1 on success, 0 on error. Opposite of pretty much all other kernel functions
+
+second function is:
+
+int idr_get_new(struct idr *idp, void *ptr, int *id);
+
+this function assiciates a new UID to ptr and stores it in id
+
+ENOSPC looks like a lack of space error
+
+idr_get_new_above allows the user to specify a minimum number for the new UID
+
+
+void * idr_find(struct idr *idp, int id);
+returns the pointer to the specified uid, on error returns NULL
+
+DO NOT MAP UIDS TO NULL FOR THIS REASON
+
+void idr_remove(struct idr *idp, int id);
+void idr_destroy(struct idr *idp); -- only deallocates unused memory associated with idp
+
+to completely remove all UIDs
+
+void idr_remove_all(struct idr *idp); and then idr_destroy
+
+I've spent so much time on red-black-trees, im just going to focus in the interface here:
+
+initialize:
+
+struct rb_root root = RB_ROOT;
+
+individual notes are represented by rb_node structure
+
+each user must manually implement their own insert and delete functions
+
+in the example, we are searching linuxes page cache for a chunk of a file represented by an inode and offset pair
+
+each inode has an rbtree that is keyed by page offsets
+
+these are also embedded like linked lists, so extract an entry with rb_entry()
+
+
+rb_link_node() inserts the node at the given spot
+
+rb_insert_color() is hen called to perform the rebalancing i.e. rb_insert_fixup in CLRS (prob optimized though)
+
+interrupts allow hardward to signal processor when ready
+signals occur asyncronously with cpu timer
+kernel can be interrupted at any time to process interrupts
+
+an interrupt is physically produced by electronic signals originating from hardware
+directed into input pins on an interrupt controller -- chip that multiplexes interrupt lines into a single
+line to the processor
+
+when interrupt controller recieves an interrupt signal, it sends a signal to the cpu, which stops current execution to handle the interrupt
+
+processor then notifies the operating system, which can handle the interrupt appropriately
+
+each device is distinguished by a unique value
+
+interrupt values are often called interrupt request (IRQ) lines -- numeric value
+
+exceptions, unlike interrupts occur syncronously with the processor clock
+	    produced by processor
+	    errors
+	    abnormal conditions (ie page fault)
+
+kernel infrastructure for handling both is similar
+
+a system call is a software interrupt, which traps into the kernel
+
+function that the kernel runs in response to an interrupt is an interrupt handler or interrupt service routine (ISR)
+
+each device has its own interrupt handler -- part of device's driver
+     ordinary C functions
+     run in a special context -- interrupt context or atomic context, unable to block
+
+two goals:
+    interrupt handler must perform quickly
+    handle large amounts of work
+
+because of these conflicting goals, interrupt handlers are split into top halves and bottom halves
+
+top half is the interrupt handler
+    run immediately upon receipt of the interrupt
+    performs only time-critical work -- like acknowledgement and resetting hardware
+
+bottom half
+       runs in future with all interrupts enabled
+
+network card example
+{
+must notify kernel immediately upon recieved packets to optimize network throughput-- avoid timeouts
+kernel responds by running associated interrupt handler with process
+jobs to be done:
+     acknowledge hardware
+     copy packets into main memory
+     prepare network card for more packets
+needs to happen quickly because network card data buffers are tiny
+}
+
+interrupt handlers are the responsibility of the driver managing the hardware
+	  each device has one driver, which registers a handler
+
+enable a given interrupt line with request_irq() from <linux/interrupt.h>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
