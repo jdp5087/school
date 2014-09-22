@@ -201,66 +201,6 @@ rb_link_node() inserts the node at the given spot
 
 rb_insert_color() is hen called to perform the rebalancing i.e. rb_insert_fixup in CLRS (prob optimized though)
 
-interrupts allow hardward to signal processor when ready
-signals occur asyncronously with cpu timer
-kernel can be interrupted at any time to process interrupts
-
-an interrupt is physically produced by electronic signals originating from hardware
-directed into input pins on an interrupt controller -- chip that multiplexes interrupt lines into a single
-line to the processor
-
-when interrupt controller recieves an interrupt signal, it sends a signal to the cpu, which stops current execution to handle the interrupt
-
-processor then notifies the operating system, which can handle the interrupt appropriately
-
-each device is distinguished by a unique value
-
-interrupt values are often called interrupt request (IRQ) lines -- numeric value
-
-exceptions, unlike interrupts occur syncronously with the processor clock
-	    produced by processor
-	    errors
-	    abnormal conditions (ie page fault)
-
-kernel infrastructure for handling both is similar
-
-a system call is a software interrupt, which traps into the kernel
-
-function that the kernel runs in response to an interrupt is an interrupt handler or interrupt service routine (ISR)
-
-each device has its own interrupt handler -- part of device's driver
-     ordinary C functions
-     run in a special context -- interrupt context or atomic context, unable to block
-
-two goals:
-    interrupt handler must perform quickly
-    handle large amounts of work
-
-because of these conflicting goals, interrupt handlers are split into top halves and bottom halves
-
-top half is the interrupt handler
-    run immediately upon receipt of the interrupt
-    performs only time-critical work -- like acknowledgement and resetting hardware
-
-bottom half
-       runs in future with all interrupts enabled
-
-network card example
-{
-must notify kernel immediately upon recieved packets to optimize network throughput-- avoid timeouts
-kernel responds by running associated interrupt handler with process
-jobs to be done:
-     acknowledge hardware
-     copy packets into main memory
-     prepare network card for more packets
-needs to happen quickly because network card data buffers are tiny
-}
-
-interrupt handlers are the responsibility of the driver managing the hardware
-	  each device has one driver, which registers a handler
-
-enable a given interrupt line with request_irq() from <linux/interrupt.h>
-
 
 
 

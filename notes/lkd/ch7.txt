@@ -1,0 +1,142 @@
+
+interrupts allow hardward to signal processor when ready
+signals occur asyncronously with cpu timer
+kernel can be interrupted at any time to process interrupts
+
+an interrupt is physically produced by electronic signals originating from hardware
+directed into input pins on an interrupt controller -- chip that multiplexes interrupt lines into a single
+line to the processor
+
+when interrupt controller recieves an interrupt signal, it sends a signal to the cpu, which stops current execution to handle the interrupt
+
+processor then notifies the operating system, which can handle the interrupt appropriately
+
+each device is distinguished by a unique value
+
+interrupt values are often called interrupt request (IRQ) lines -- numeric value
+
+exceptions, unlike interrupts occur syncronously with the processor clock
+	    produced by processor
+	    errors
+	    abnormal conditions (ie page fault)
+
+kernel infrastructure for handling both is similar
+
+a system call is a software interrupt, which traps into the kernel
+
+function that the kernel runs in response to an interrupt is an interrupt handler or interrupt service routine (ISR)
+
+each device has its own interrupt handler -- part of device's driver
+     ordinary C functions
+     run in a special context -- interrupt context or atomic context, unable to block
+
+two goals:
+    interrupt handler must perform quickly
+    handle large amounts of work
+
+because of these conflicting goals, interrupt handlers are split into top halves and bottom halves
+
+top half is the interrupt handler
+    run immediately upon receipt of the interrupt
+    performs only time-critical work -- like acknowledgement and resetting hardware
+
+bottom half
+       runs in future with all interrupts enabled
+
+network card example
+{
+must notify kernel immediately upon recieved packets to optimize network throughput-- avoid timeouts
+kernel responds by running associated interrupt handler with process
+jobs to be done:
+     acknowledge hardware
+     copy packets into main memory
+     prepare network card for more packets
+needs to happen quickly because network card data buffers are tiny
+}
+
+interrupt handlers are the responsibility of the driver managing the hardware
+	  each device has one driver, which registers a handler
+
+enable a given interrupt line with request_irq() from <linux/interrupt.h>
+
+int request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags, const char name, void *dev)
+
+irq_handler_t is a function pointer
+
+signature:
+
+typedef (*irq_handler_t)(int, void *);
+
+flags can be zero or a bitmask of types defined in <linux/interrupt.h>
+
+IRQF_DISABLED - disable interrupts during execution of this handler
+IRQF_SAMPLE_RANDOM - interrupt should contribute to the kernel entropy pool
+IRQF_TIMER - handler processes interrupts from system timer
+IRQF_SHARED - an interrupt line can be shared among multiple interrupt handlers - each handler on a given line must specifiy this flag
+
+fourth  parameter is an ASCII text representation of the device associated with the interrupt
+	these text names are used by /proc/irq and /proc/interrupts
+
+fifth parameter, dev, is used for shared handlers, so the kernel knows which handler to remove from the line
+      common practice is to pass the device structure, as it is unique
+     
+the interrupt handler also recieves this pointer every time it is called
+
+EBUSY indicates that the given interrupt line is already in use
+
+never call request_irq when in a context where it is unsafe to block because:
+
+proc_mkdir() -> proc_create() -> kmalloc() -- kmalloc() can sleep
+
+it is important to initialize hardware before registering an interrupt to prevent an interrupt handler running before the device is fully initalized
+
+must unregister an interrupt handler when a driver unloads:
+
+void free_irq(unsigned int irq, void *dev)
+interrupt line is disabled only when last interrupt handler has been removed.
+	  dev must be unique and match a device on given irq line
+
+
+interrupt handler signature:
+
+static irqreturn_t intr_handler(int irq, void *dev)
+       dev is the same dev passed to request_irq
+
+an interrupt handler returns irqreturn_t, which can be either:
+   IRQ_NONE -- returned when device was not originator
+   IRQ_HANDLED -- durrr
+
+IRQ_RETVAL(val) - returns IRQ_HANDLED if val is nonzero, else IRQ_NONE
+
+the typedef of irqreturn_t provides backward compatibility
+
+interrupt handler is normally marked static because it is not called from another file.
+
+interrupt handlers need not be reentrant, because the current interrupt line is disabled while the interrupt handler is running. This means that other interrupts can be serviced without risk
+
+diff between nonshared and shared:
+     IRQF_SHARED must be set in flags arg to request_irq
+     dev argument must be unique -- cannot pass NULL
+     handler must be able to determine whether its device generated the interrupt
+
+all drivers sharing interrupt line must meet these requirements
+    if one doesn't none can share line
+
+each handler on a shared line is checked sequentially, this means that a device must have a status register to indicate whether it caused the interrupt
+
+
+real-time clock (RTC) example:
+	  seperate from sytem timer, sets the system clock, provides alarm, or supplies periodic timer
+
+any alarm or periodic timer is generally implemented via interrupt
+
+after RTC driver loads, the function rtc_init() is invoked to initialize the driver
+
+
+
+     
+
+
+
+
+
