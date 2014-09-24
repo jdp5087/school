@@ -133,10 +133,88 @@ any alarm or periodic timer is generally implemented via interrupt
 after RTC driver loads, the function rtc_init() is invoked to initialize the driver
 
 
+when executing an interrupt handler, the kernel is in interrupt context
+     in this mode the kernel is executing on behalf of a process
 
-     
+during process context:
+     current macro points to associated task
+     process can sleep or invoke scheduler while the kernel is in process context
+
+interrupt context is not associated with a task
+	  current macro is not relevant
+	  cannot sleep because reschedule is not possible
+
+time critical
+     must be quick and simple as possible
+     utilize bottom half as much as possible
+
+memory limited:
+       8 kb (32 bit) or 16 kb (64 bit) stack for all interrupt handlers that run while a process is executing
+       interrupt handlers must be frugal
+
+an option on 32-bit systems exists to reduce stack size to 4k, but have each interrupt handler have its own stack
+   called the interrupt stack
+   one per processor
+   average  space available is actually greater because interrupt handlers get full stack to themselves
+
+regardless always use minimum amount of space possible
+
+implementation of interrupt handling is architecture dependant
+
+devices issues an interrupt via an electrical signal sent to the interrupt controller
+if interrupt line is enabled, the interrupt conroller forwards to interrupt to the processor
+interrupts can be disabled in the processor
+if not, the processor stops what it is doing, disables interrupts, and jumps to the interrupt entry point
+
+for each interrupt line, the processor jumps to a set palce and executes the code located there. This is how the kernel knows the IRQ number of the incoming interrupt
+initial entry point saves the IRQ value and stores the status of the interrupted tasks registers on the stack
+then do_IRQ() is called
+
+after this point most interrupt code is written in C
+
+signature of do_IRQ():
+unsigned int do_IRQ(struct pt_regs regs)
+
+pt_regs holds the previous value of registers and the IRQ value
+
+mask_and_ack_8259A() on pcs acknowledges the receipt of an interrupt and disables the interrupt line
+
+looks like interrupt handling can occur per CPU on SMP systems
+
+void handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
+{
+im guessing the first statement increments statistics of how many interrupts are currently on cpu
+acknowledge receipt if necessary
+handle the event
+}
+
+irqreturn_t
+handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action)
+{
+set retval to IRQ_NONE
+save flags as 0 and irq as desc->irq_data.irq
+trace_irq_handler in action->handler while it does its thing
+the processor disables irqs, so if IRQF_DISABLED wasnt on, re-enable irq interrupts
+catch drivers which wake_thread but didnt set up thread functions
+otherwise wake thread,
+set flags to action->flags
+or retval with result
+set action to action->next
+do that whole thing until action is NULL
+add_interrupt_randomness(irq, flags) <- adds to entropy to be used by random number generator
+if irqdebug is on, note the interrupt
+return retval
+}
+
+this doesnt originate from do_IRQ, so there are differences, like the function doesnt do local_irq_disable when done
 
 
+ret_from_intr()
+{
+checks whether a resched is pending (need_resched is set)
+if returning to user_space, resched can be called
+if returing to kernel_space, resched can only be called if preempt count is 0
+after schedule(), if no other work is to be done, original registers are restored
+}
 
-
-
+see entry_32.S or entry_64.S for x86
