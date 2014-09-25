@@ -1,0 +1,60 @@
+yaaaarg I lost my notes up to "A Real-Life Interrupt Handler"
+
+Real Time Clock (RTC) seperate from system timer
+     sets system clock, provides an alarm, supplies a periodic timer
+
+set by writing a time into a specific registor or IO range
+
+rtc_init initializes the driver (calls request_irq() on a shared line)
+
+looks like there are different request_irqs depending on the architecture. Sparc 32 does a shared line, while on a pc, the request_irq is not shared, and on IRQ 8... I'm not sure what Love is talking about here, it seems like he mixed the two together
+
+rtc_interrupt runs with interrupts disable but there is a possibility of conflicting with set_rtc_mmss(), which is defined in arch/XXXX/kernel/time.c
+
+High Precision Event Timer (HPET) is a hardware timer used in PCs incorporated in pc chipsets since circa 2005
+
+Advanced Configuration and Power Interface (ACPI) - specification defining an open standard for device configuration and power management by the operating system
+	 platform independent interfaces for hardware discovery
+
+BIOS -- Basic Input/Output System
+     de facto standard defining a firmware interface
+     BIOS software is built into the pc and is first software run when PC powered on
+     fundamental purposes:
+     		 initialize and test hardware components
+		 load a bootloader from mass memory device
+		 abstraction layer providing a consistent way for kernel and software to interface with
+		 hardware like keyboard, display, and other IO
+		 	  MS-DOS did rely on bios, linux doesnt, directly accesses hardware
+
+BIOS is software stored on a ROM chip on the motherboard
+specifically designed to work with each model of computer
+	     contents stored on flash memory so it can be rewritten without removing from motherboard
+
+Modern BIOS settings can be managed interactively
+
+CMOS - Complementary metal-oxide-semiconductor
+     technology for constructing integrated circuits
+     used in microprocessors, microcontrollers, static RAM, and other dig logic circuits
+     also used in several analog circuits such as image sensors, data converters, and highly 
+     	  integreted transceivers
+     high noise immunity and low static power consumption
+     only draws significant power when changing states
+
+VLSI - Very-large-scale integration
+     most commonly uses CMOS -- microprocessors is VLSI
+     
+rtc_interrupt
+{
+acquire a spin lock
+add the 9th bit, & by using ~0xff as a mask
+if high precision event timer is enabled, irq param is actually interrupt info, or bits 4-7 with rtc_irq_data
+else read from the CMOS RCT_INTR_FLAGS bits 4-7
+if rtc_timer is on, mod_timer (update) -- will discuss timers in ch 11
+the rest of the functions are a series of callbacks. with a lock on rtc_task_lock makes sure data used by rtc_callback is not used during its call
+kill_fasync
+return IRQ_HANDLED flag
+}
+
+look in to the callbacks and kill_fasync
+
+
