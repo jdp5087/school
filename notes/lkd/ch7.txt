@@ -273,4 +273,12 @@ after schedule(), if no other work is to be done, original registers are restore
 }
 
 see entry_32.S or entry_64.S for x86
->>>>>>> 1a25cb315a199bc6d9bfefb7ee0b29d135bded31
+
+procfs is a virtual filesystem that exists only in kernel memory, typically mounted at /proc
+       simulates a real file
+
+looks like there are different kinds of device controller
+      IO-APIC-edge
+      IO-APIC-fastoi
+      IO-APIC (generic maybe?)
+      PCI-MSI-edge
