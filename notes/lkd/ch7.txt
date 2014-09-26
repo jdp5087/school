@@ -282,3 +282,82 @@ looks like there are different kinds of device controller
       IO-APIC-fastoi
       IO-APIC (generic maybe?)
       PCI-MSI-edge
+
+
+function that provides /proc/interrupts is show_interrupts()
+
+linux implements a family of interfaces to manipulate state of interrupts
+
+arch-dependant and found in <asm/system.h> and <asm/irq.h>
+
+the main reason for manipulating interrupt state is to provide for synchronization
+    can guarantee current code will not be interrupted
+    disabling interrupts also disables kernel preemption
+    this does not guarantee lack of concurrent access from another cpu
+    	 for this a lock of some sort is needed
+
+to disable and enable interrupts (only on current cpu):
+local_irq_disable()
+...do stuff
+local_irq_enable()
+
+both funcs are implemented in asm
+     basically assembly calls to clear and set the flags for allow interrupts
+
+bit 9 of the FLAGS register in x86
+
+it is dangerous to disable and then enable, because if interrupts were already disabled when a function was called, then enabling will incorrectly enable interrupts when returning to the previous function. Since it is too difficult to know all code paths in the kernel, it is better to just use a function to save and then return to prev state
+
+local_irq_save(flags);
+local_irq_restore(flags);
+
+flags are saved in the stack on some architectures, so the calls to local_irq_save and local_irq_restore must occur within the same function.
+
+cli used to be global, it is not anymore, so now must use local irq disable/enable and spin locks
+
+advantage is that fine-grained locks are faster, streamlined interrupt system, easier to comprehend
+
+four functions for disabling a specific interrupt line:
+     void disable_irq(unsigned int irq);
+     	  disables interrupts to specified irq on all processors
+	  does not return until any currently executing handler completes
+	       (is this all interrupts or just for specific irq?)
+	  
+     void disable_irq_nosync(unsigned int irq);
+     	  this one doesn't wait for completion of current handlers
+
+     void enable_irq(unsigned int irq);
+     	  these functions nest, so only the last call to enable_irq actually enables line
+
+     void syncronize_irq(unsigned int irq);
+
+these can be called from interrupt context, but be careful not to enable interrupts for a line being currently handled
+
+bad idea to diable interrupts on a shared line
+    the previous functions are usually seen in legacy drivers
+
+ISA - Industry Standard Architecture
+    not widely used any more
+    16-bit internal bus of IBM PC/AT
+    supports up to 6 8-bit irq devices, 5 16-bit irq devices, four devices for 8-bit DMA or 3 devices for 16-bit DMA
+
+PCI - Peripheral Component Interconnect
+    PCI Local Bus Standard
+    supports all functions of a processor bus but in a way that is arch independant
+    devices connected to PCI appear to bus master to be directly connected
+    assigned address in processors address space
+    parallel, syncronous to a single bus clock
+    attached devices can be integrated circuits on motherboard itself or exansion cards in slots
+    typical devices: network cards, sound cards, modems, extra ports such as usb or serial,
+    	    tv tuner cards and disc controllers
+    video cards require too much bandwidth for pci, preferred interface is now PCI Express
+
+PCI and PCI-X are somtimes called Parallel PCI in order to distinguish from PCI Express
+    PCI has become obsolete for most purposes -- still exist for backwards compat
+
+PCIe (Peripheral Component Interconnect Express)
+     high speed serial computer expansion bus
+     higher max throughput, lower I/O pin count and smaller physical footprint
+     FINISH THIS ON WIKIPEDIA
+
+
