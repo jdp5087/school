@@ -1,0 +1,10 @@
+BOTTOM HALVES AND DEFERRING WORK -- CHAPTER 8
+
+limitations on interrupt handlers "top half"
+	    must not run for too long since they run asynchronously
+	    since AT LEAST current interrupt level is disabled, hardware cannot comm. with operating
+	    	  system while an interrupt handler runs
+
+	    can't block in interrupt context, so function is limited
+
+

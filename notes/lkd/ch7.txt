@@ -336,6 +336,25 @@ these can be called from interrupt context, but be careful not to enable interru
 bad idea to diable interrupts on a shared line
     the previous functions are usually seen in legacy drivers
 
+irqs_disabled in <asm/system.h> returns nonzero if the interrupt system on the local cpu is disabled
+
+from <linux/hardirq.h>
+     in_interrupt()
+	nonzero if kernel is performing any type of interrupt handling
+		includes interrupt handler or bottom half
+     in_irq()
+	only nonzero if executing an interrupt handler
+	
+
+
+Serial communication
+       transmission of bits sequentially, rather than parallel
+       advances in signal integrity and transmission speed are starting to make serial communication
+       		faster than parallel design, even at short distances
+	serial transmission results in lower cost cable
+	good examples of serial
+	     keyboard, mouse USB, digital video
+
 ISA - Industry Standard Architecture
     not widely used any more
     16-bit internal bus of IBM PC/AT
@@ -358,6 +377,28 @@ PCI and PCI-X are somtimes called Parallel PCI in order to distinguish from PCI 
 PCIe (Peripheral Component Interconnect Express)
      high speed serial computer expansion bus
      higher max throughput, lower I/O pin count and smaller physical footprint
-     FINISH THIS ON WIKIPEDIA
+     better scaling
+     better error detection and reporting (AER -- Advanced Error Reporting)
+     native hot-plug functionality
+PCIe architecture
+     high-speed serial replacement of old PCI/PCI-X
+     point-to-point topology -- seperate serial links connecting every device to root complex
+     hmmmm bus clock?
+     full-duplex communication between any two endpoints
+     no inherent limitation on concurrent access across multiple endpoints
+     uses packets
+     packetizing and de-packetizing handled by the transaction layer of the PCIe port
+     a point-to-point connection processes the following PCI-requests
+       configuration read/write, I/O read/write, memory read/write
+       interrupts (INTx, MSI, MSI-X)?
+     an interconnect or link is composed of between 1 and 32 lanes, where lower speed devices use few lanes
+     	and high speed devices like graphics cards use x16 or more
+
+Univesal Serial Bus
+	 CONTINUE WITH THIS
+     
+hot swapping -- the ability to replace computer system components without significant disruption to system
+     
+hot-plugging -- ability to add to system without sig. disruption
 
 
