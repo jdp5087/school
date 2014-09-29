@@ -7,4 +7,28 @@ limitations on interrupt handlers "top half"
 
 	    can't block in interrupt context, so function is limited
 
+bottom halves are necessary to allow interrupt handlers to run quickly and then return to a state where interrupts are enabled
+
+multiple mechanisms for implementing bottom halves
+
+BH -- bottom half -- the first and only method at the time for deferring work in linux
+   a bit flag indicated whether bottom half could run
+   globally syncronized -- no two could run at same time
+
+Task Queues
+     family of queues -- each queue had a linked list of functions
+     too inflexible to replace BH entirely
+     not lightweight enough for performance-critical routines
+
+2.3 -- introduction of softirqs and tasklets
+
+softirq
+	statically defined bottom half that can run simultaneously on multiple processors
+
+tasklet -- easy to use softirq
+	dynamically created
+	flexible
+	built on top of softirq
+
+
 
