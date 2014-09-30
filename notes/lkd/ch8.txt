@@ -24,11 +24,67 @@ Task Queues
 
 softirq
 	statically defined bottom half that can run simultaneously on multiple processors
+	two softirqs of same time can run simultaneously on different processors
+	good for performance
 
 tasklet -- easy to use softirq
 	dynamically created
 	flexible
 	built on top of softirq
+	two tasklets of the same type cannot run simultaneously on different processors
+	good tradeoff between performance and ease of use
+
+in 2.5 BH and task queue were dropped
+
+now three interfaces exist
+    softirq
+    tasklet
+    work queue
+
+kernel timers -- defer work for specified period of time.
+
+
+softirq_action is a struct that holds a function that does a softirq action
+	       it is a struct so that it can easily be expanded in the future if necessary
+
+softirq_vec holds 32 softirqs, statically allocated
+
+prototype for  a softirq_handler:
+
+void softirq_handler(struct softirq_action *)
+
+can be called like:
+
+my_softirq->action(my_softirq);
+
+softirqs do not preempt another softirq, and the only thing that can preempt a softirq is a hardware interrupt
+
+interrupt handlers usually raise the softirq -- aka mark it for execution
+	  the handler then runs at an appropriate time
+	  
+pending softirqs are checked for at the following places:
+	on return from hardware interrupt path
+	in ksoftirqd kernel thread
+	any code that explicitly checks for pending softirqs
+
+softirq execution occurs in __do_softirq
+	this basically calls softirqs in softirq_vec, and borrows the flags of the current process
+	     without PF_MEMALLOC
+	it proceeds through the pending irqs, bit shifting to nonzero flags, finding a softirq that
+	   needs to be called, and then finds locates the appropriate softirq_action, calls it,
+	   and loops again
+
+at the time of this book, two subsystems used softirqs directly:
+   networking
+   block devices
+
+kernel timers and tasklets are built on top of softirqs
+
+
+must assign a priority to to softirq in an enum in <linux/interrupt.h>
+
+register the softirq via open_softirq
+	     
 
 
 
