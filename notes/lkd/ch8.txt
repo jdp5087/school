@@ -85,6 +85,53 @@ must assign a priority to to softirq in an enum in <linux/interrupt.h>
 
 register the softirq via open_softirq
 	     
+if the same softirq is raised while another is running, proper locking is required
+   instead most softirqs resort to per-processor data
+   if bottom half doesn't need to scale to inifinite cpus, use a tasklet instead
+
+after registering a softirq with open_softirq(), it can be marked as pending with raise_softirq()
+
+two types of tasklet
+    HI_SOFTIRQ
+    TASKLET_SOFTIRQ
+
+tasklets are represented by tasklet_struct
+
+main difference from softirq
+     only runs on one cpu simultaneously
+     serialized with respect to itself
+     if intertask sync is necessary, do it with locks, but this only applies when sync is not between two of
+     	the same tasklet
+
+difference from old BH
+	   different tasklets can run on multiple cpus simultaneously
+
+state can be either 0, TASKLET_STATE_SCHED, or TASKLET_STATE_RUN
+      TASKLET_STATE_RUN only used on SMP
+
+count is a reference counter, can only run if 0 and marked pending
+
+scheduled tasklets are the equivalent of raised softirqs, stored in two structures
+	  tasklet_vec
+	  tasklet_hi_vec
+	  both are linked lists
+
+scheduled via tasklet_schedule() or tasklet_hi_schedule()
+	  pointer to tasklet_struct as lone argument
+	  
+tasklet_schedule
+{
+check the tasklet state and if already running, just return
+else call __tasklet_schedule
+save irq state
+add tasklet to tail of tasklet_vec
+set the tail of tasklet_vec to the pointer of t->next (which is null, but can be altered)
+"raise" the tasklet
+restore interrupt state
+}
+
+
+
 
 
 
