@@ -24,7 +24,7 @@ Task Queues
 
 softirq
 	statically defined bottom half that can run simultaneously on multiple processors
-	two softirqs of same time can run simultaneously on different processors
+	two softirqs of same kind can run simultaneously on different processors
 	good for performance
 
 tasklet -- easy to use softirq
@@ -147,3 +147,99 @@ otherwise, a lock wasn't possible so disable irq, set the current task to the en
 	   __raise_softirq_irqoff(TASKLET_SOFTIRQ), and reenable irqs
 
 }
+
+to statically create a tasklet use DECLARE_TASKLET or DECLARE_TASKLET DISABLED
+   note the use of ATOMIC_INIT(0) and ATOMIC_INIT(1)
+
+to dynamically create a tasklet use:
+void tasklet_init(struct tasklet_struct *t, tasklet_handler, dev);
+
+where t is a pointer to a dynamically created task struct
+
+tasklets, like softirqs, cannot block
+	  they also run with interrupts enabled so be careful to disable interrupts and obtain lock if
+	       a tasklet shares data with an interrupt handler
+	  also use proper locking 
+
+mark a tasklet as pending:
+     tasklet_schedule(&my_tasklet);
+
+a tasklet always runs on the same processor that scheduled it
+  makes better use of processor's cache
+
+disable a tasklet:
+	tasklet_disable(&my_tasklet)
+	if tasklet is currently running, won't return until tasklet stops
+	tasklet_disable_nosync() won't wait
+
+enable:
+	tasklet_enable(&my_tasklet)
+
+remove from queue:
+       tasklet_kill(&my_tasklet)
+       this function sleeps, so must not be used from interrupt context
+
+ksoftirqd -- kernel thread to aid in processing of softirqs when system becomes overwhelmed
+
+most softirqs are usually handled on return from handling an interrupt
+
+problem: a balance must be struck between potentially heavy softirq load and userspace
+solution: reactivated softirqs (may be reactivated by themselves) are not immediately handled
+	  instad, the kernel wakes up a family of kernel threads nice value 19
+	  this way userspace isn't starved but softirqs do get run at an appropriate time
+
+one kernel thread per processor
+    named ksoftirqd/n where n is the cpu number
+    this ensures that if a cpu is free, then it will handle pending softirqs
+
+the gist of a ksoftirqd thread
+{
+if no softirqs are pending, call schedule
+set current state to TASK_RUNNING
+while there are softirqs pending
+      run softirqs
+      if schedule is needed reschedule
+sleep
+}
+
+old BH
+    statically defined with 32 maximum BHs
+    modules could not directly use BH interface
+    BH handlers were strictly serialized -- not scalable
+    task_queues were supposed to replace BH's but never did
+    porting from old BH to new softirqs and tasklets was difficult because of weaker serialization
+    
+deciding between work queues and softirq/tasklets
+	 if sleep needed, user work queues, else tasklets
+
+work queues run in process context making them useful for:
+     allocating large amounts of memory
+     obtain a semaphore
+     perform block I/O
+
+work queues are basically an interface for creating kernel threads to handle work queued from elsewhere
+     called worker threads
+     allow a device driver create a special worker thread to handle deferred work
+     called events/n, one per processor
+     default worker thread handles work from multiple locations
+     
+unless a strong need exists for a special worker thread, the default is preferred
+       special thread is justifiable when a large amount of work is needed
+       	       this has an added benefit of not starving other queued work in default thread
+
+looks like workqueue implementation has changed since Love's book, so I'll try to pull some stuff out of
+      the doc
+
+wq allows for asynchronous process execution context
+   independent thread serves as the execution context -- worker
+   queue of work to do -- work queue
+   executes functions associated with work one-by-one
+
+
+
+
+
+
+
+
+
