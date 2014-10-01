@@ -130,8 +130,20 @@ set the tail of tasklet_vec to the pointer of t->next (which is null, but can be
 restore interrupt state
 }
 
+when a tasklet has been raised, on the next call of do_softirq(), TASKLET_SOFTIRQ or HI_SOFTIRQ is raised
+     and tasklet_action() or tasklet_hi_action() handle the processing
 
+tasklet_action
+{
+disable interrupts
+clear tasklet_vec
+enable interrupts
 
+iterate all tasklets in tasklet_vec
+try to acquire a tasklet lock -- this checks to see if the tasklet is already running
+if the preempt count is 0, call tasklet->func(tasklet->data), unlock the tasklet, and call continue
 
+otherwise, a lock wasn't possible so disable irq, set the current task to the end of the tasklet vec
+	   __raise_softirq_irqoff(TASKLET_SOFTIRQ), and reenable irqs
 
-
+}
