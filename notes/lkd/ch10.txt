@@ -1,0 +1,65 @@
+KERNEL SYNCHRONIZATION METHODS
+
+atomic operations are the foundation of sync methods
+
+it is not possible for two atomic operations to occur on the same variable concurrently
+
+two sets of interfaces for atomic operations
+    integers
+    individual bits
+implemented on every arch that Linux supports
+
+on archs where cpu doesnt support the necessary atomic operation, the memory bus can be locked
+
+atomic data operations occur on a special data type
+       atomic_t
+       ensures that atomic operations are only used with special types
+       ensures that datatypes are not passed to nonatomic functions
+       ensures compiler doesn't optimize
+       hides architecture specific differences
+
+it looks like atomic_t no longer has the volatile prefix
+
+usually an unsigned 32-bit integer
+
+declarations are in <asm/atomic.h>
+
+most of the operations are pretty straightforward
+
+to convert an atomic_t to an int:
+   atomic_read(&v)
+
+atomic_dec_and_test returns true if the result is 0 else false
+
+on most architectures, a read as inherently atomic so the implementation is usually just a macro or inline
+
+atomicity does not imply ordering
+	  ordering is enforced via barrier operations
+
+on 64 bit archs, use atomic64_t
+   basically all of the same functionality as atomic_t
+
+for portability, almost always use atomic_t
+
+BITWISE OPERATIONS
+defined in <asm/bitops.h>n
+
+unlike atomic_t, there is no corresponding type for atomic bit operations, because they take generic pointer
+
+atomic bit instructions can be mixed with normal C
+
+everything you might expect, set bit, clear bit, flip bit, test and whatever bit
+	   all start from a generic address
+
+
+nonatomic versions also exist
+	  usually prefixed with double underscores
+
+atomically find first set bit or unset bit
+	   int find_first_bit(unsigned long *addr, unsigned int size)
+	   int find_first_zero_bit(unsigned long *addr, unsigned int size)
+
+
+
+
+

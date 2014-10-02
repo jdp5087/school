@@ -1,2 +1,113 @@
 INTRO TO KERNEL SYNCHRONIZATION
 
+code paths that access and and manipulate shared data are called critical regions (or critical sections)
+
+atomic functions can be executed as if they were one instruction
+race condition -- when two threads attempt to access the same data simultaneously
+syncronization -- ensuring that race conditions dont occur
+
+many cpus support atomic operations natively
+
+threads hold locks, locks protect data
+	when a thread posesses a lock, other threads must wait for the lock to be released
+
+locks are advisory and voluntary:
+      they are merely a programming construct, and nothing prevents code from being written that
+      	   accesses critical regions while a lock exists, its just a bad idea
+
+the differences between locks generally involves the behavior of threads that are waiting on a lock
+    spin -- maybe these are viable in interrupt context where sleeping isn't allowed?
+    sleep
+
+locks are written in atomic operations that ensure that a race condition won't exist within locking mechanisms
+      x86 uses compare and exchange instructions
+
+in user space, concurrency is caused by preemption
+   multiple single-threaded programs sharing files, or within a single program with signals, since they
+   	    occur asyncronously
+   also known as pseudo-concurrency
+
+true concurrency -- SMP exucting the same critical regions simultaneously
+
+causes of concurrency within kernel
+       interrupts -- asynchronous and can happen any time
+       softirqs (including tasklets) -- kernel can raise at any time, interrupting current code
+       kernel preemption -- durrr
+       sleeping and sync with user-space -- task in kernel mode can sleep, thus scheduling occurs
+       symettrical multiprocessing - durrr
+
+
+causes of bugs
+       interrupt occurs during a critical region that the handler also enters
+       kernel code is preemptive while within a shared region
+       kernel code sleeps during cricial section
+       Two Processors, 1 Datum == gross
+
+locks are easy, the hard part is recognizing critical regions
+      must be done early in development, not as afterthought
+
+desired safeness:
+	interrupt-safe
+	SMP-safe
+	preempt-safe
+
+it is often easier to decide which data DOES NOT need protection
+
+local automatic variables and dynamic data whose address is only on the stack doesn't need protection
+
+data that is only accessed by one task doesn't becuase a process can execute on only one cpu at a time
+
+what does need locking?
+     global kernel data structures
+     	    rule of thumb: if anybody else can see it, lock it
+	    lock data, not code
+
+CONFIG_SMP allows for SMP at compile time
+same goes for CONFIG_PREEMPT
+     code will be excluded (clever use of macros) if not defined
+
+always write code for hardest case -- smp with preemption
+
+ask yourself:
+    is the data global?
+    is the data shared between process and interrupt context?
+       between two interrupt handlers?
+    if prempted during data access can a new process touch the same data?
+    what states can the process block in?
+    can the data be freed during execution?
+    what happens if another cpu runs this code?
+    
+good practices for deadlock-free code:
+     implement lock-ordering -- and document it
+     prevent starvation -- if foo doesnt occur will bar wait forever?
+     do not double acquire same lock
+     simplicity
+
+to reiterate -- whenever locks are nested inside other locks, a specific ordering must be enforced
+   good practice to document the lock ordering in a comment above the lock
+
+order of unlock doesn't matter with respect to deadlock, but common practice is to release locks in the
+      order in which they were acquired
+
+contended lock -- lock currently in use but another thread is trying to acquire
+
+high contention can occur because locks are frequently obtained and held for a long period of time
+     solution must maintain concurrency protection
+
+scalability -- how well a system can be expanded
+	    processes
+	    processors
+	    memory
+	    etc.
+
+granularity (in locking) -- describes the size or amount of data that a lock protects
+	    kernel has become increasingly fine-grained
+
+tradeoff between scalability and high overhead of that scalability on small machines
+
+coarse locking can become a bottleneck even on small machines
+       per processor locks runqueues was a vast improvement over global lock pre 2.4
+
+start simple, grow in complexity as needed (but maybe allow for this growth in complexity in initial design?)
+
+
