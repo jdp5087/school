@@ -235,9 +235,56 @@ wq allows for asynchronous process execution context
    queue of work to do -- work queue
    executes functions associated with work one-by-one
 
+new abstraction -- work item is introduced, holds a pointer to a function "the work" to be called
+
+a work item is queued on a workqueue by a driver or subsystem usually
+
+worker threads execute the functions
+worker threads are managed in worker-pools
+
+two worker-pools
+    normal work
+    high-priority work
+    both of these pools for each processor plus some others for unbound workqueues
+
+influence behavior of workqueues through flags on the workqueue the work item is being queued on
+	  cpu locality
+	  concurrency limits
+	  priority
+	  more
+
+work is generally added to the shared worklist of target worker-pool on the same cpu as the issuer
+
+the implementation of Concurreny Managed Workqueues hooks in to the scheduler
+    as long as runnable worker threads exist, new work isnt scheduled
+    when last runnable worker thread sleeps, a new worker is immediately scheduled
+
+alloc_workqueue allocates a workqueue
+		arguments, @name, @flags, @max_active
+
+flags
+	WQ_UNBOUND -- workqueue which is not bound to any specific cpu
+		   good for:
+		   	wide fluctuation in concurrency requirements
+			long-running large workloads can be better managed by scheduler
+	WQ_FREEZABLE -- participates in freeze phase of system suspend operations
+	WQ_MEM_RECLAIM -- any workqueue which will be used in memory reclaim paths
+	WQ_HIGHPRI -- high priority worker-pool
+	WQ_CPU_INTENSIVE -- work item doesn't contribute to concurrency level
+	
+all workqueues are non-reentrant
+
+local_bh_disable()
+local_bh_enable()
+	disable/enable softirqs and tasklets
+	these functions nest -- uses the preempt count (same as kernel  preemption)
+
+protecting softirqs is different than protecting work queues because softirqs can occur asynchronously
+	   on return from interrupt handling, work queues execute in process context
 
 
-
+These notes arent very complete because the end of this chapter was outdate (the part on work queues)
+as a result, further reading might be necessary on work queues if ever needed
 
 
 
