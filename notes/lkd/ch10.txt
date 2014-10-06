@@ -59,6 +59,106 @@ atomically find first set bit or unset bit
 	   int find_first_bit(unsigned long *addr, unsigned int size)
 	   int find_first_zero_bit(unsigned long *addr, unsigned int size)
 
+SPIN LOCKS
+
+a spin lock is a lock that can be held by at most one thread
+  when a thread is already locked and another thread attempts access, the thread is said to be contended
+  the busy thread spins
+
+spin locks are lightweight locks that are only meant to be held for short periods of time
+
+must be weighed with alternative -- sleeping (semaphores). This has the overhead of a context switch
+
+spinlocks are arch-dependant, implemented in assembly
+
+looks like a spinlock is a struct which has an attribute .raw_lock, .dep_map
+
+basic use:
+
+DEFINE_SPINLOCK(mr_lock);
+spin_lock(&mr_lock);
+spin_unlock(&mr_lock);
+
+on uniprocessing machines, locks compile away, but still signify regions where preemption is disabled
+
+spinlocks are not recursive, so do not try to acquire a spinlock that is held by the same thread
+	  this will lead to deadlock
+
+interrupts must be disabled before acquiring locks in many cases
+	   otherwise, an interrupt handler could wait on an already held lock, but it will never release
+
+
+interface to do this is
+
+DEFINE_SPINLOCK(mr_lock);
+unsigned long flags;
+
+spin_lock_irqsave(&mr_lock, flags);
+spin_unlock_irqrestore(&mr_lock, flags);
+
+when sure that interrupts are already enabled
+NOT RECOMMENDED
+spin_lock_irq(&mr_lock);
+/* critical region */
+spin_unlock_irq(&mr_lock);
+
+when testing code with spin locks
+     CONFIG_DEBUG_SPINLOCK
+     CONFIG_DEBUG_LOCK_ALLOC
+
+spin_lock_init() for dynamic allocation
+
+spin_trylock()
+	zero if locked nonzero otherwise
+
+spin_is_locked()
+	0 if "open", nonzero if given lock is currently acquired
+
+the previous two uses are uncommon, as usually code should attempt to acquire a lock, or be called while lock
+    is already held
+
+ok, this is starting to get complicated
+
+a bottom half may interrupt process context, because of this, when in process context, data must be protected
+  with both a lock and disabling of bottom halves
+
+likewise, BH can be preempted by an interrupt, so data must be protected during BH with lock and disable irc
+
+since tasklets of same type can't run simultaneously, only necessary to protect shared data
+      between diff tasklets
+
+
+multiple readers are ok as long as write isn't occur in some contexts
+	 hence reader-writer spin locks
+
+conversely, writer lock can be held by at most one writer without concurrent readers
+
+sometimes called shared/exclusive or concurrent/exclusive locks
+
+initialized via
+
+DEFINE_RWLOCK(mr_rwlock);
+
+for reading:
+
+read_lock(&mr_rwlock);
+/* critical path */
+read_unlock(&mr_unlock);
+
+for writing:
+
+write_lock(&mr_rwlock);
+/* critical path */
+write_unlock(&mr_rwlock);
+
+cannot upgrade a read lock to a write lock:
+
+read_lock(&mr_rwlock);
+write_lock(&mr_rwlock);
+
+THIS WILL DEADLOCK
+     normally if mixing between reads and writes is needed, just use reg spin lock
+
 
 
 
