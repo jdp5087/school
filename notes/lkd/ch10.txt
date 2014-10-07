@@ -159,7 +159,95 @@ write_lock(&mr_rwlock);
 THIS WILL DEADLOCK
      normally if mixing between reads and writes is needed, just use reg spin lock
 
+rwlocks favor readers over writers
 
+semaphore
+	sleeping lock
+	much greater overhead than spin lock
+	well suited to long running locks
+	must be obtained only in process context
+	it is possible to sleep while holding a semaphore without deadlocking
+	cannot acquire a semaphore while holding a spin lock, because sleep may be needed
+	semaphores are preemptible unlike spinlocks -- do not adversely affect scheduling latency
+	
+when task tries to acquire unavailable semaphore, the semaphore adds task to a wait queue and puts the task
+     to sleep. When the semaphore becomes available, it wakes a sleeping task on the queue
 
+number of allowed users for a semaphore can be set at declaration
 
+binary semaphore
+       one user, also known as a mutex
+       
+counting semaphore
+	 arbitary threads may access, also set at declaration
 
+most of the time in the kernel we want mutexes
+
+two methods:
+    down() - acquire -- if the count is negative, the process sleeps, 0 or greater it can enter crit region
+    	   decrements the count
+    up() - release after crit region, increments the count
+
+semaphore implementation is architecture dependant (gee, isn't everything?)
+	  defined in <asm/semaphore.h>
+
+looks like the mutex specific macros may not be around anymore, instead:
+      DEFINE_SEMAPHORE(name); seems to serve that purpose
+
+sema_init(struct semaphore *sem, int val); for control over count
+
+down_interruptible() will attempt to acquire the given semaphore, and go TASK_INTERRUPTIBLE if not
+		     returns -EINTR if task was awakened during slumber
+
+down places task in status TASK_UNINTERRUPTIBLE
+
+down_interruptible() is more commonly used
+
+down_trylock() will try the semaphore
+	       nonzero if already held, but the task doesn't sleep
+	       zero if not already held
+
+just like with spinlocks, there are reader-writer semaphores
+
+static declaration:
+static DECLARE_RWSEM(name);
+
+dynamic:
+init_rwsem(struct rw_semaphore *sem);
+
+the are all mutexes, just only for writers
+
+down_read(&sem);
+up_read(&sem);
+down_write(&sem);
+up_write(&sem);
+
+also down_write_trylock() and down_read_trylock()
+     opposite return values than with normal semaphroes, nonzero if acquired, zero if not
+     	      WHY??? - this is crazy
+
+downgrade_write() -- allows upgrade of reader to writer spinlock
+
+now there as something called an actual mutex that implements a lighter weight mutual exclusion that sem
+
+declare:
+DEFINE_MUTEX(name)
+
+dynamic:
+mutex_init(&mutex);
+
+mutex_lock(&mutex);
+mutex_unlock(&mutex);
+
+simpler interface -- more efficient
+	only one task can hold a mutex at a time
+	whoever locked a mutex must unlock
+	recursive lock and unlock not allowed
+	process cannot exit while holding a mutex
+	cannot be acquired by interrupt handler or bottom half even with mutex_trylock()
+	managed only via official API
+
+benefit is that a special debugging mode is available to check for violations
+
+prefer mutexes to semaphore unless mutex constraints do not allow
+       start with mutex and go to semaphore if necessary
