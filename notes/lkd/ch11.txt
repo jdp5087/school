@@ -1,0 +1,68 @@
+TIMERS AND TIME MANAGEMENT
+
+both relative and absolute time are used
+
+periodic events are driven by system timer
+	 programmable hardware that issues interrupt at a given frequency
+	 interrupt handler is called the timer interrupt
+
+dynamic timers
+	schedule events after a specified time
+	can be created and destroyed dynamically
+
+system timer works off an electronic time source
+       such as digital clock or cpu frequency
+       timer going off is called hitting or popping
+       handled by timer interrupt handler
+
+period between interrupts is a tick
+
+wall time
+     actual time of day
+     important to user space
+     kernel tracks simply becuase it timer interrupt
+
+functions that depend on system timer
+	  system uptime
+	  time of day
+	  balancing of scheduler runqueues on SMP
+	  running dynamic timers that have expired
+	  resource usage and processor time stats
+
+HZ -- hertz is the measure of the period, so on x86 the defautl is 100 so an interrupt every 1/100 seconds
+   never hard code tick rate, always use HZ
+
+lower HZ offers:
+      better resolution
+      accuracy of timed events improves
+      on average, a timer interrupt is off by half the length of a period (because it doesn't coincide
+      	 exactly with the interrupt handler)
+      system calls such as poll and select occur with improved precision
+      resource usage and other measurements have a finer resolution
+      preemption occurs more accurately
+
+disadvantages:
+	higher overhead for handling the timer interrupt
+	       this also leads to thrashing of the cpu cache
+	
+tickless OS
+	 schedule timer interrupts for when they are needed
+
+jiffies -- number of ticks since system boot
+
+therefore a jiffy is the time between two sucessive clock ticks
+
+system uptime == jiffies/HZ seconds
+
+convert from second to ticks with
+	(second * HZ)
+
+kernel rarely cares about converting from ticks to seconds
+
+declaration of jiffies:
+
+extern unsigned long volatile jiffies;
+
+any type other than unsigned long is incorrect
+
+through a linker script in arch/x86/kernel/vmlinux.lds.s, the first half of jiffies_64 is jiffies, cool!
