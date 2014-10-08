@@ -251,3 +251,98 @@ benefit is that a special debugging mode is available to check for violations
 
 prefer mutexes to semaphore unless mutex constraints do not allow
        start with mutex and go to semaphore if necessary
+
+completion variables are very similar to semaphores
+	   one task works while another waits for a signal through the completion variable
+	   when task is done working, it wakes up other tasks through the completion variable
+	   vfork() uses completions while parent waits for child to exec or exit
+
+completions represented by a struct
+
+initialize via:
+DECLARE_COMPLETION(mr_comp);
+
+dynamic:
+init_completion()
+
+wait with:
+wait_for_completion()
+
+complete() wakes up waiting tasks -- this function is not easy to find for some reason
+
+BKL -- Big Kernel Lock
+    can sleep while holding BKL
+    	will be disabled when task is unscheduled, and enabled when task resumes
+	recursive
+	only in process context
+	new users of BKL are forbidden -- slowly being phased out
+
+still can be seen throughout kernel, thus important to understand
+
+behaves like a spin lock with addition of previously listed properties
+
+lock_kernel()
+unlock_kernel()
+
+kernel_locked()
+	nonzero if lock currently held, otherwise zero
+
+BKL disables kernel preemtion
+
+seq locks
+    simple mechanism for reading and writing shared data
+    used when:
+    	 data has a lot of readers
+	 few writers
+	 writers are favored and readers should never starve writers
+	 simple data
+    if count is odd, then a write_seqlock exists, even, no writers
+    readers compare count at start and finish, if equal, no change
+
+common use of seq locks is for reading jiffies
+       jiffies are the number of clock ticks since the machine booted
+       since 64 bit some machines cannot atomically read jiffies_64
+
+
+sometimes data need not be locked, but preemption still poses a pseudo-concurrency risk
+
+preempt_disable() -- increments preemption counter
+preempt_enable() -- decrements preemption counter -- also services reschedules if counter == 0
+preempt_disable_no_resched() -- obvious
+preempt_count() -- returns preemption count
+
+alternative solution to per-processor data:
+	    use get_cpu() to disable preemption
+	    put_cpu() to reenable
+
+
+some processors (not x86) can reorder instructions for optimization reasons
+
+compilers also reorder instructions for optimization
+
+barriers prevent this behavior (through arch specific instructions usually)
+
+rmb()
+	ensures that no loads are reordered across the rmb() call
+		no loads before rmb() will be moved to after
+		no loads after rmb() will be moved to before
+
+wmb()
+	stores instead of loads, but otherwise the same as rmb
+
+mb()
+	read and write
+
+read_barrier_depends()
+	only for loads on which a subsequent load depends
+	     all reads prior to barrier are guaranteed to complete before any reads after the barrier
+	     	 that depend on reads prior to barrier
+
+smp_rmb(), smp_wmb(), smb_mb(), smp_read_barrier_depends()
+	   all potential optimizations, because on UP machines, only compiler barriers are needed
+
+barrier() method prevents the compiler from optimizing loads across the call
+
+compiler_barriers are lighter, but are not aware of potential for memory access outside of current context
+
+this stuff is complex and will need further review
