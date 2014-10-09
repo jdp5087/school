@@ -72,3 +72,64 @@ to access jiffies_64 use get_jiffies_64 -- this is a special function that acts 
 
 
 wraparound is a concern in jiffies
+	   32-bit jiffies can only store 2**32 -1 jiffies
+	   bugs can occur when waiting for some future event, but jiffies wrap around
+	   	during wait, giving appearance that time has actually started over
+
+just use macros
+     time_after(unknown, known)
+     time_before
+     time_after_eq
+     time_before_eq
+
+because of set interfaces, jiffies must be scaled when exported to user space
+	USER_HZ defines expected ticks (probably 100)
+	
+jiffies_to_clock_t does the correct scaling for the userspace
+		   if they are integer multiples
+		      x / (HZ / USER_HZ)
+
+     
+two hardware devices for time keeping
+    system timer -- issues interrupts HZ times per sec
+    Real-Time Clock -- keeps track of time even when device is off through a battery on system board
+    	      on PC's RTC and CMOS are integrated
+	      	 battery also preserves BIOS settings
+    on boot, RTC is used to initialize wall time -- stored in xtime variable
+
+for system timer, the hardware either uses an electronic clock that oscillates at a certian frequency
+    either that or uses a decrementer
+
+x86 -- Programmable Interrupt Timer (PIT)
+    other x86 time sources include
+    	  local APIC timer -- hardwired to each CPU
+	  	Advanced Programmable Interrupt Controller
+			 oscillates at the same rate as the cpu to which it is wired
+			 LAPICS handle all external interrupts for a specific processor
+			 	also handle interprocessor interrupts
+				PCI cards no longer need to map their interrupts to ISA
+			timer on APIC allows for aperiodic (tickless) kernel
+
+I/O APIC redirects interrupts from peripherals to LAPICs
+
+timer interrupt handler is broken into two parts
+      arch dependant
+      arch independant
+
+varies by arch, but generally the arch-dependant handler does the following:
+       xtime_lock which protects jiffies_64 and x_time (wall time)
+       acknowledge or reset system timer
+       periodically save wall time to RTC
+       tick_periodic -- this is the architecture-independant routine
+       
+       
+function of tick_periodic()
+	 increment jiffies_64 by one -- safe because we still have x_time_lock
+	 update system and user time for currently running process
+	 run expired dynamic timers
+	 execute scheduler_tick
+	 update wall time
+	 load average
+
+
+			 
