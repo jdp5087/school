@@ -66,3 +66,9 @@ extern unsigned long volatile jiffies;
 any type other than unsigned long is incorrect
 
 through a linker script in arch/x86/kernel/vmlinux.lds.s, the first half of jiffies_64 is jiffies, cool!
+
+to access jiffies_64 use get_jiffies_64 -- this is a special function that acts atomically access all 8 bytes
+   locks jiffies count via xtime_lock
+
+
+wraparound is a concern in jiffies
