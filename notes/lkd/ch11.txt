@@ -132,4 +132,14 @@ function of tick_periodic()
 	 load average
 
 
-			 
+the kernel credits a process for running in whatever mode it was in during timer interrupt for the whole
+    previous tick, even though there were probably many transitions between user and kernel spaces during tick
+    
+run_local_timers() -- runs any expired timers to be run by a softirq
+
+scheduler_tick decrements current processes timeslice
+	       sets need_resched if needed
+	       balances runqueues as needed
+
+
+
