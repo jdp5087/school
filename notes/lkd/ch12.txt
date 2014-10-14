@@ -1,0 +1,79 @@
+MEMORY MANAGEMENT
+
+memory is managed by the MMU -- makes the translation from virtual address to physical address
+
+pages are generally 4KB on 32-bit archs, and 8KB on 64-bit
+      thus with 4KB pages and 1GB memory, there are 262,144
+
+struct page {
+flags is unsigned long so 32 bits available
+_count is the usage count of the page -- -1 when free for reallocation
+       _count should be accessed with function page_count()
+       page may be used by:
+       	    page cache -- in which case the mapping field points to the address space object associated
+	    private data -- pointed at by private
+	    or as a mapping in a processes page table
+virtual - void poitner to the page's virtual address
+	NULL if highmem
+
+];
+
+the important part to understand is that the page table describes the physical memory of a page
+    not the data contained therein
+    important to note that due to swapping, the data underneath the page struct is subject to change
+
+possible owners of a page are
+	 user-space processes
+	 dynamically allocated kernel data
+	 static kernel data
+	 page cache
+	 more
+
+not all pages can be treated identically
+    some physical addresses cannot be used for certain tasks
+
+pages are divided into zones
+
+two shortcomings for hardware:
+    some hardware devices can perform DMA (direct memory access) to only certain mem addresses
+    some archs physically address more than they can virtually address
+    	 some mem not mapped into kernel address space
+
+four primary memory zones
+     ZONE_DMA
+     ZONE_DMA32
+     ZONE_NORMAL -- regularly mapped pages
+     ZONE_HIGHMEM
+
+two other parts of the enum:
+    ZONE_MOVABLE
+    __MAX_NR_ZONES
+
+devices on x86 that need special DMA zone:
+	ISA -- can only access first 16 MB of physical memory
+
+on 32-bit x86, (highmem is also arch specific) ZONE_HIGHMEM is above 896MB
+
+the rest is low memory
+
+on x86, ZONE_NORMAL is between 16MB and 896MB
+   remember, we are still talking actual physical addresses
+
+these zones are basically pools that tell the kernel where to look for pages under each category
+      allocations can not cross boundaries
+
+x86-64 can fully map 64-bits of memory, so it doesn't have highmem
+
+each zone is represented by a struct zone
+
+struct zone {
+has a spinlock -- not pages, just the zone lock
+watermark is an array that holds min, low and high watermarks for a zone
+	  used to set benchmarsk for suitable per-zone memory
+
+};
+
+
+
+
+
