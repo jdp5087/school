@@ -141,5 +141,86 @@ scheduler_tick decrements current processes timeslice
 	       sets need_resched if needed
 	       balances runqueues as needed
 
+struct timespec holds time in seconds since January 1st, 1970
+       tv_nsec is the number of nanoseconds elapsed this second
+
+reading or writing xtime requires xtime_lock, which is a seqlock
+	remember that a seqlock is a reader/writer lock that favors writers
+
+primary user-space interface for getting time is gettimeofday()
+	implemented as sys_gettimeofday() -- NO LONGER TRUE
+
+this is boring...moving on to dynamic timers
+
+timers are represented by struct timer_list
+       holds a list_entry
+       expiration in jiffies
+       internal timer field -- not sure
+       function to execute when timer expires
+       address of data -- looks like flags
+
+as with most data structures in the kernel, there are macros to init a timer
+   declare my timer
+   init_timer(&my_timer)
+   set fields manually
+   add_timer(&my_timer) -- activate
+
+
+mod_timer modifies the expiration of a timer
+
+deactivate prior to expiration
+	   del_timer(&my_timer)
+	   returns 0 if already inactive otherwise 1
+
+del_timer_sync for SMP -- cant guarantee that the handler isnt running already on a diff cpu
+
+never delete a timer, set its expiration for the future, and then add it back
+
+use del_timer_sync
+    
+protect data used by timer handler function
+
+the timer interrupt adds expired timers to a linked list, where the will be executed in bottom half softirq
+    run_timer_softirq
+
+sometimes code needs to delay execution but not a spin lock
+	  for instance, a driver waiting for hardware to change modes
+
+busy looping
+     integer multiple of jiffies
+     simply a while loop that waits for time_before(jiffies, timeout) to be false
+     better to reschedule
+     	    ONLY FROM PROCESS CONTEXT
+
+interesting note, normally c compiler only loads a variable once,
+	    however, jiffies is registered as volatile, so the compiler makes no assumptions
+	    	     this means we can loop and check jiffies every time and be sure that it will be correct
+
+
+delays defined in <linux/delay.h> and <asm/delay.h>:
+       udelay
+       ndelay
+       mdelay
+
+       
+BogoMIPS -- Bogus million instructions per second
+	 number of busy loop iterations a processor can perform in a given period
+	 value stored in loops_per_jiffy
+
+if longer than one millisecond, do not use udelay, use mdelay for performance reasons
+
+unless extreme precision is needed (in which case use one of the xdelays)
+       schedule_timeout(time_period)
+       no guarantee that it will wake up exactly at end of period
+       set_current_state(TASK_INTERRUPTIBLE or TASK_UNINTERRUPTIBLE)
+
+
+
+schedule_timeout basically uses a dynamic timer
+		 we assume that the tast is already in a sleep state TASK_INTERRUPTIBLE or TASK_UNINTERRUPTIBLE
+		 make a timer to run a function that wakes up the task when time expires
+		      if task is interruptible and woken before timer, return time left on wait
+
+		 
 
 
