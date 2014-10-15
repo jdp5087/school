@@ -73,7 +73,167 @@ watermark is an array that holds min, low and high watermarks for a zone
 
 };
 
+get page:
+struct page * alloc_pages(gfp_t gfp_mask, unsigned int order);
 
+get logical address of page:
+void * page_address(struct page *page);
 
+if struct isnt needed, get logical address of alloced page with:
+unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
 
+pages are continuous, so you can just figure out where pages are if you are given the starting point
+
+get zeroed page (especially useful for allocing pages for user space)
+unsigned long get_zeroed_age(unsigned int gfp_mask);
+
+must handle errors during memory allocation, because if we use free_pages on memory we don't "own"
+     corruption can occur
+     best to attempt mem alloc early, that way unwind isn't as difficult
+
+kmalloc is more general and not restricted to page-size chunks
+
+with kmalloc, allocation is in byte-sized chunks
+
+void * kmalloc(size_t size, gfp_t flags);
+     notice the flags argument (not seen in userspace malloc)
+     might round up to a page since lower level allocs are page-based
+     never returns less than requested, in that case would return NULL
+
+gfp_t is an unsigned in typedef that holds gfp flags
+      gfp stands for get free page
+
+gfp flags are broken down into three categories
+    action modifiers -- how the kernel is supposed to allocate memory (sleep, retry, etc)
+    zone modifiers -- where to get the memory from
+    types -- premade combination of action and zone modifiers
+
+apparently these flags are important, so here are their meanings
+
+__GFP_WAIT -- allocator can sleep
+__GFP_HIGH -- can use emergency pools
+__GFP_IO -- can start disk IO
+__GFP_FS -- can start filesystem IO
+__GFP_COLD -- can use cache cold pages
+__GFP_NOWARN -- don't print alloc failure warnings
+__GFP_REPEAT -- can repeat (This can still fail eventually)
+__GFP_NOFAIL -- indefinitely tries allocation
+__GFP_NORETRY -- Don't try again
+__GFP_NOMEMALLOC -- does no fall back on reserves
+__GFP_HARDWALL -- "hardwall" cpuset boundaries
+__GFP_RECLAIMABLE -- marks pages reclaimable
+__GFP_COMP -- adds compound page metadata
+
+zone modifiers
+     __GFP_DMA -only from this zone
+     __GFP_DMA32 -only from this zone
+     __GFP_HIGHMEM - ZONE_HIGHMEM or ZONE_NORMAL
+
+for funcs __get_free_pages() or kmalloc()
+    cannot specify ZONE_HIGHMEM
+    because it is possible that this would allocate pages not mapped in kernels virtual address space,
+    	    thus it wouldn't have a logical address
+    only alloc_pages() can take ZONE_HIGHMEM flag
+
+type flags:
+
+GFP_ATOMIC - high priority and doesnt sleep -- used in int handlers, BH's spinlocks
+	   much less likely to succeed since blocking isn't possible
+GFP_NOWAIT -- same as first except wont fall back on emergency mem pools
+GFP_NOIO -- can block, but no disk IO -- used when already in block IO code
+GFP_NOFS -- can block and initiate disk IO, but no FS IO -- used when already in filesystem code
+GFP_KERNEL -- normal allocation, might block. used in process context when safe to sleep
+	   likely to succeed
+GFP_USER -- normal alloc, might block. used for user-space processes
+GFP_HIGHUSER -- used for ZONE_HIGHMEM and might block
+GFP_DMA -- used for ZONE_DMA -- usually used in combination with one of prev types
+
+what to use when
+
+process context, can sleep -- GFP_KERNEL
+process context, cannot sleep -- GFP_ATOMIC or perform allocs before or after no sleep region
+interrupt handler -- GFP_ATOMIC
+Softirq -- GFP_ATOMIC
+Tasklet -- GFP_ATOMIC
+DMA, can sleep -- (GFP_DMA | GFP_KERNEL)
+DMA, can't sleep -- (GFP_DMA | GFP_ATOMIC)
+
+kfree() is pretty straightforward, just be sure to always balance kmallocs with kfrees()
+	never kfree() a block of memory that wasn't successfully kmalloc()ed
+
+vmalloc() is like kmalloc
+	  BUT -- mem is only virtually contiguous, not necessarily physically contig
+	  this is how user space malloc works
+	  so physically non contiguous areas can have page tables fixed up to appear virtually contiguous
+	     through mem-mapping
+
+generally only hardware devices need physically contiguous areas
+	  this revolves around DMA, they live on other side of MMU, and don't understand virt addresses
+
+even though most kernel code could use vmalloc, it uses kmalloc for performance reasons
+
+vmalloc can thrash TLB because it must map individual pages instead of regions as in kmalloc
+	TLB is a hardware cache of the mapping from virt to phys addresses
+
+so use vmalloc only when absolutely necessary like when large regions of memory are needed
+   for instance when dynamically creating space for modules -- uses vmalloc()
+
+vmalloc only needs size of allocation in bytes -- no flags
+	might sleep
+	
+vfree is its foil
+      also might sleep
+
+free-lists
+	already allocated data structures that are available
+
+data structures can be used and then returned to free list
+     problem is that kernel doesnt understand free lists, cant cut down on cache sizes during memory pressure
+
+goals accomplished by slab allocator
+      cache frequently used data structures (because they are allocated and freed often)
+      store free lists contiguously
+      improves performance during frequent alloc and frees
+      awareness of object size, page size, and total cache size results in smarter allocator
+      percpu allocation and frees dont need SMP lock
+      if NUMA, can allocate from same node as requestor
+      coloring prevents multiple objects from being mapped to the same cache line
+      
+many different caches, each holds a specific type of object
+     for instance task_struct or struct inode
+     
+caches are then divided into slabs, physically contiguous pages
+       typically only a single page
+
+three states for each slab
+      full, partial or empty
+
+full means all objects are allocated
+
+struct inode is allocated through slab from inode_cachep
+
+during allocation, first try from partial slabs, then from empty
+       if no empty exists, create a new one
+       this reduces fragmentation
+
+the slab allocator returns a pointer to an unused object
+when done, the allocator marks the object as free
+
+each cache is represented by a kmem_cache structure
+     contains three lists
+     	      slabs full
+	      slabs partial
+	      slabs empty
+
+can't find definition of slab anywhere
+      looks like kmem_cache hold many of the variables that slab held
+     then inside kmem_cache there is kmem_cache_cpu, which is a percpu cache
+
+slab allocates memeory for new slabs with __get_free_pages()
+     doesn't this imply that unless all allocs occur at one time, then they won't be contiguous?
+     
+
+slab descriptors are allocated either outside the slab in a general cache or inside the cache itself in the beg
+     descriptor is stored inside the slab itself if it is small enough or if internal
+     		slack space is sufficient to hold descriptor
 
