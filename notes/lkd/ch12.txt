@@ -233,7 +233,122 @@ slab allocates memeory for new slabs with __get_free_pages()
      doesn't this imply that unless all allocs occur at one time, then they won't be contiguous?
      
 
-slab descriptors are allocated either outside the slab in a general cache or inside the cache itself in the beg
-     descriptor is stored inside the slab itself if it is small enough or if internal
+slab descriptors are allocated either outside the slab in a general cache or inside the cache itself in the beg    descriptor is stored inside the slab itself if it is small enough or if internal
      		slack space is sufficient to hold descriptor
+
+WARNING -- THIS COULD BE OUT-OF-DATE
+kernel swap daemon -- kswapd
+       kernel thread -- no virtual mem, only physical mapping
+       manages swaps and ensures that enough free pages exist for efficiency
+       started by init, triggered by swap timer
+       checks to see if free pages are above a certain threshold in both high and low memory
+
+       three strategies for reducing number of physical pages used by system
+       	     reduce size of buffer and page caches
+       	     swap out system V shared memory pages
+	     swapping out and discarding pages
+
+tries to free 6 pages, and if that doesnt work 3 pages every time it runs and threshold is violated
+
+wakes more frequently depending on memory pressure
+
+page and buffercaches are good candidates for adding to free_area because the need not be written
+     to physical storage
+       like swaps do
+     the trick is to remove caches from all processes fairly, so the penalty is equal between proc's
+
+depending on memory pressure, the kswapd tries to free larger blocks of pages
+	  uses a cyclical buffer, attempting to free a few pages at a time
+
+looks like shared memory has been changed and shm_id is obsolete
+
+during swap, the page table entry of each process using shared memory must be updated to indicate that the
+       physical page now resides in swap space
+       finds page table by finding vm_area_struct for each process
+
+
+if buffer and page caches can't be reduced then
+   try to swap out system v shared mem
+       then try swapping out and discarding pages
+
+pages are sent to swap if they are dirty or cannot be accessed in some other way
+      executable images are read-only and therefore can be discarded if not in use
+      
+kswapd selects a process to swap
+       not whole process, only a small number of page tables that are not shared or locked
+
+page aging is how the swap daemon determines whether a page hasn't been used for a while
+
+the swap operation varies by vm_area_struct, taken from vm_ops
+
+most of kmem_getpages seems to be accounting
+     the one interesting function is alloc_pages_exact_node()
+     	 "heart of zoned buddy allocator" -- read about this later -- for NUMA
+	 	fulfills memory allcation from same node as requestor
+     note that the book cites a use of __get_free_pages() which no longer exists
+
+kmem_freepages -- frees slabs through lower-level free_pages()
+
+the point of slab is to avoid allocs and frees, so these previous functions
+    are only called when absolutely necessary
+
+slab layer allows for creation of new caches, and the allocation and freeing of objects within
+     exported to entire kernel
+     it manages all of the complex allocation of extra slabs
+
+
+create a new cache with kmem_cache_create
+
+flags for a cache_create:
+
+SLAB_HWCACHE_ALIGN
+	align each object to a cache line
+	      prevents objects sharing a cache line
+	      improves speed but wastes memory
+	      	       makes sense for frequently used slab caches, otherwise no
+SLAB_POISON
+	fills slab with a known value, used to catch accesses to uninitialized memory
+
+SLAB_RED_ZONE
+	inserts red zones around allocated area to detect buffer overruns
+
+SLAB_PANIC
+	panic if allocation fails
+	      used where allocation must not fail
+
+SLAB_CACHE_DMA
+	allocate each slab in DMA-able memory
+
+ctor is a constructor for the cache -- NULL if not needed, which is the likely case
+
+destroy a cache with kmem_cache_destroy
+	might sleep
+	cache must be empty
+	lock maybe?
+
+get an object through kmem_cache_alloc
+    if no objects available, slab allocator will use kmem_getpages()
+    
+free an object with kmem_cache_free
+
+since the kernel stack is very small (8KB or 16KB) we try to limit use of the stack
+      since 2.6 there is the option to reduce kernel stack to 4KB but
+      	    interrupts use their own stack
+      unbounded recursion and alloca() are not allowed?
+
+since stack usage must be limited, automatic variables must be limited to a couple hundred bytes
+      stack overflows occur silently!!
+
+moral of the story is to use dynamic memory allocations whenever possible
+
+Through the following discussion of high memory mappings, keep in mind that the kernel address space
+	uses physical, not virtual, addresses
+
+therefore, pages obtained through alloc_pages() with __GFP_HIGHMEM flag may not have a logical address
+
+
+
+
+
+
 
