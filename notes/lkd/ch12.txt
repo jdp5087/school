@@ -346,9 +346,61 @@ Through the following discussion of high memory mappings, keep in mind that the 
 
 therefore, pages obtained through alloc_pages() with __GFP_HIGHMEM flag may not have a logical address
 
+pages in high memory are mapped somewhere between 3GB and 4GB on x86
+
+permanent mapping with kmap(struct page *page)
+	  if page resides in low memory, the virtual address is simply returned
+	  if page in high memory, then a permanent mapping is created
+	  this function might sleep, so not to be used from interrupt context
+
+kunmap to remove mapping
+
+temporary (atomic) mappings -- dont sleep
+
+void *kmap_atomic(struct page *page, enum km_type type)
+void kunmap_atomic(void *kvaddr, enum km_type type)
+     this method doesn't block, but does disable preemption because the mappings are unique to a processor
+     the enum basically specifies the purpose of the temporary mapping
+
+percpu data is stored in an array, where each entry is for a specific processor
+       this is the old method
+       if we are assured that no other cpu touches the data, things are fine
+       concerns
+		preemption
+			if a process is rescheduled to a new cpu, the data is no longer valid
+			race conditions from tasks preempting and accessing data on the same cpu
+
+	solution -- get_cpu() disables preemption
+		    put_cpu() reenables preemption
 
 
+new percpu interface
 
+DEFINE_PER_CPU(type, name);
 
+if declarations are needed elsewhere (avoids compile warnings)
+   DECLARE_PER_CPU(type, name);
 
+get_cpu_var(name) -- gets var for current
+put_cpu_var(name) -- enable preemption on finish
+
+per_cpu(name, cpu) -- Doesn't lock! careful
+
+compile-time methods are not suitable for modules because of the way that they are linked
+
+runtime allocation
+
+void *alloc_percpu(type);
+void *__alloc_percpu(size_t size, size_t align);
+void free_percpu(const void *);
+
+access per processor:
+       get_cpu_var(ptr);
+       put_cpu_var(ptr);
+
+reasons for percpu use
+	reduces the locking requirements on data
+	reduces cache invalidation -- less "thrashing"
+		alignment is set so that the same percpu variable will not be on same line for cache
+			  between processors
 
