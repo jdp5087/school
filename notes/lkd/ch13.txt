@@ -1,0 +1,102 @@
+VIRTUAL FILESYSTEM
+
+the VFS is a layer of abstraction that provides standard system calls so that
+    any type of filesystem can be built on top of the filesystem layer
+
+basically that means that the kernel does all of the low-level stuff
+
+common file model that can represent any filesystems general feature set and behavior
+
+user-space -> vfs -> filesystem -> hardware
+
+historically, Unix has provided four basic filesystem related abstractions
+	      files
+	      directories entries
+	      inodes
+	      mount points
+	      
+unix filesystems are mounted at a specific mount point in a global hierarchy called a namespace
+     this hierarchy is now per-process
+     	  each process inherits parent's namespace by default
+
+a file is an ordered string of bytes
+  simpler but less powerful than record-oriented filesystems
+
+directory entries are called dentries
+	  actually just normal files that list entries within
+	  allows for same operations as on any other file
+
+inode -- stores metadata on file
+      seperate place from data itself
+
+superblock ties together all file information on filesystem as a whole
+
+in unix, these fileystem concepts are implemented as part of physical on-disk layout
+   for instance file in one block,
+   inodes organized elsewhere
+   superblock in another place
+
+on linux, non-unix filesytems must provide the illusion that they also implement these concepts
+
+the VFS is object oriented
+    c structures representing common file model
+      superblock object -- specific mounted filesystem
+      inode -- specific file
+      dentry -- single component of a path
+      file -- open file associated with a process
+
+generic operations are contained by objects, the kernel invokes these methods that
+	are implemented in the underlying fs
+
+	super_operations object
+			 such as write_inode and sync_fs
+	inode_operations
+		such as create and link()
+	dentry operations
+	       d_compare and d_delete
+	file_operations
+		read and write
+
+impelemented as a structure of pointers that act on parent object
+
+
+other structures
+      file_system_type
+	one for each registered filesystem
+
+      vfs_mount
+		each mount point is described by this structure
+      two per process structures -- describe filesystems and files associated with individual processes
+      	  fs_struct
+	  file
+
+superblock stores information about the filesystem as a whole
+	   filesystems that are not disk based store this info in memory
+	   
+superblock is huge -- i wont bother trying to take notes on it
+	   alloc_super() reads the superblock of disk and fills in the struct
+
+s_op is a pointer to all superblock operations (here we start to see the OOP)
+     holds a bunch of function pointers
+     	   low-level operations on filesystem and its nodes
+
+weeee what do the functions do?
+
+alloc_inode
+	creates and destroys a new inode object under given superblock
+destroy_inode
+	deallocates inode
+dirty_inode
+	invoked by VFS -- denotes a modified inode
+write_inode
+	write an inode to disk
+drop_inode
+	called by VFS when last reference to an inode is dropped -- normal unix filesystems dont
+	       define this function, the VFS just deletes the inode
+
+delete_inode
+	deletes inode from disk
+put_super
+	called by VFS -- release given superblock object -- caller must hold s_lock
+write_super
+	update on-disk superblock
