@@ -1,0 +1,47 @@
+THE BLOCK IO LAYER
+
+block devices have random access of fixed-size chunks of data
+      each chunk is a block
+
+eg hard drive, floppy, blu-ray, flash memory
+   all of these devices use filesystems
+
+the other type is character device, which have sequential (serial) access
+    eg serial ports and keyboards
+
+character devices are simpler, dont require an entire subsystem like the block layer
+
+block devices like hard drives tend to be a lot more performance-sensitive than drivers
+      the complexity provides a lot of room for optimization
+
+smallest addressable unit on a block device is a sector, which is a power of 2 but commonly 512 bytes
+
+software has different goals, and imposes a different smallest logically addressable unit -- the block
+	 block is an abstraction of the filesystem
+	       can be accessed only in multiples of blocks
+	 kernel performs all operations in blocks, not sectors
+	 	block must be a multiple of sector size
+		power of two
+		no larger than page size
+		common sizes are 512B 1K, 4K
+		
+aliases for sector
+	hard sectors
+	device blocks
+	
+aliases for blocks
+	filesystem blocks
+	IO blocks
+
+blocks are stored in buffers
+       each buffer is exactly the size of a block, which remember is up to a page
+
+each buffer is associated with a descriptor (control information)
+     called a buffer_head
+
+
+
+
+
+
+
