@@ -100,3 +100,334 @@ put_super
 	called by VFS -- release given superblock object -- caller must hold s_lock
 write_super
 	update on-disk superblock
+sync_fs
+	syncronize fs metadata with whats on disk
+write_super_lockfs
+	prevents changes to filesytem while it updates superblock on disk with specified superblock
+unlockfs
+	unlock the filesystem against changes
+statfs
+	obtain filesystem statistics
+remount_fs
+	called by VFS when remounting with new options
+	must hold s_lock
+clear_inode
+	release inode, clear pages containing related data
+unmount_begin
+	interrupt a mount operation?
+
+so these operations involve the management of inodes, mounting, syncing superblocks, and metadata
+   invoked in process context
+
+a comment at the beginning of struct inode makes it appear that structures are more efficient towards their
+  beginning than end
+
+inodes represent a file
+       inode is only constructed in memory as files are accessed
+       	     remember that the slab allocator is used for inodes
+       includes special files like devices and pipes
+       		some entries in struct inode are specific to special files
+		     eg i_pipe and i_bdev and i_cdev (these are a union because they are mut-ex)
+		     	note that if not special this union holds nothing
+	
+
+keep in mind here that the functions held in i_op are the filesystems implementation of functions that
+     VFS can invoke
+
+functions are invoked via i->i_op->function()
+
+what do they do, you ask?
+
+create
+	called from creat() and open() system calls to create a new inode structure
+lookup
+	looks for a file associated with the corresponding dentry
+link
+	invoked by link() system call
+	creates a hard link of the file in old_dentry to file in new_dentry
+unlink
+	called by syscall unlink() to remove inode specified by dentry
+symlink
+	called by symlink() system call
+	creates a symbolic link named symname
+mkdir
+	mkdir system call, creates a directory
+rmdir
+	rmdir syscall
+mknod
+	called by syscall mknod() to create a special file such as pipe, dev, or socket
+rename
+	move the old_dentry to new_dir with filename specified by new_dentry
+readlink
+	readlink() system call
+	moves x bytes from dentry symbolic link to specified buffer
+follow_link
+	translates a symlink to the inode to which it points
+put_link
+	clean up after a call to put_link
+truncate
+	changes the size of a given file to i->i_size (modified before call)
+permission
+	unless file system has an Access Control List (ACL), usually this is set to NULL and
+	       default VFS functions are used
+	0 if access allowed, negative otherwise
+setattr
+	notifies a change even after an inode has been modified
+getattr
+	called by VFS to refresh an attribute from disk
+	key/value pairs are allowed with extended attributes
+setxattr
+	set extended attribute name to value of file referenced by dentry
+getxattr
+	copy into value the extended attribute name for specified file
+listxattr
+	copies list of attrs into buffer list
+removexattr
+	remove given attr from a given file
+
+since in Unix filesystems everything is a file, dentry is used to facilitate special directory operations
+      that regular files don't have or need
+
+for instance in the path /bin/vi, /, bin, and vi are all dentry objects
+    all parts of a path need a dentry, including the file at the end (if it is a regular file)
+dentries might also include mount points
+
+dentries do not correspond to an on-disk structure
+	 created from string pathnames on the fly
+	 as a result, the flags don't have a dirty flag
+	 they appear to be highly optimized
+	      cache alignment
+	      lru
+		doubly linked -- insert at head, remove at tail during memory pressure
+	      slab is used
+
+dentry state
+       one of three states
+       	   used
+		corresponds to a valid inode
+		indicates that there are one or more users of object (d_count is positive)
+	   unused
+		d_count is zero
+	   negative
+		not associated with a valid inode (d_inode is NULL)
+		kept around to speed up invalid entries, easy to free if memory is needed
+
+three parts to dentry cache
+      used dentries linked to associated inode
+      lru
+      hash table and hashing function -- quickly resolve a path into a dentry object
+      	   hashing with chaining
+	   	   size depends on physical RAM
+		   hash function is d_hash
+		   d_lookup is the hash table lookup
+
+dentry cache allows quick lookup if the dentry is already cached
+       if not, the filesystem walks from the root, can be time consuming
+       	  then adds to cache after search is complete
+
+inode cache -- icache
+      any inode object that is being referenced by a dentry is kept around because the usage count is positive
+
+dentry chache and icache are beneficial because filesystem access is temporally and spatially local usually
+
+d_revalidate
+	determines whether a dentry is valid -- used when about to use a dentry from cache
+d_hash
+	hashes a given dentry
+d_compare
+	compares name1 and name2, usually left to default
+d_delete
+	called by vfs when d_count reaches 0
+d_release
+	vfs calls when a dentry is going to be freed, default does nothing
+d_iput
+	called whenever an associated inode is lost
+
+
+file objects
+     in memory representation of an open file
+     object is created in response to open() system call
+     destroyed by close()
+     all file related system calls are defined in f_op table
+     can be multiple file objects for one file
+     	 merely a processes view into the file
+     object points back to dentry (which points back to inode)
+     no dirty flag since a file doesn't actually correspond to a file entry on disk (weird as it may seem)
+
+loff_t is long long typedef
+
+file operations:
+     the defaults usually work fine on UNIX systems
+
+llseek
+	updates file pointer to given offset
+read
+	read count bytes from offset into buf, file pointer then updated
+	called by read() system call
+aio_read
+	async read of count bytes
+	called by aio_read() syscall
+write
+	write count bytes into file at specified offset
+	called by write()
+aio_write
+	async version of write
+	called by aio_write()
+
+readdir
+	returns next directory in a directory listing
+	called by readdir()
+poll
+	sleeps, waiting for activity on a given file
+	called by poll()
+ioctl
+	sends a command and argument pair to a device
+	used when a file is an open device node
+	called by ioctl()
+	callers must hold BKL
+unlocked_ioctl
+	same as ioctl without BKL
+	used by VFS when ioctl is called from user space
+compat_ioctl
+	portable version of ioctl
+	used on 64-bit systems by 32-bit applications
+	all new drivers should implement this and just have either ioctl or unlocked_ioctl point to same func
+mmap
+	memory maps the given file into the given address space
+	called by mmap()
+open
+	creates a new file object and links it to corresponding inode object
+	called by open()
+flush
+	called by VFS when reference count on an open file decreases
+release
+	called by VFS when last remaining reference is destroyed
+fsync
+	write all cached data for a particular file to disk
+aio_fsync
+	called by aio_fsync system call to write cached data for a file to disk
+fasync
+	enables or disables signal notification of asynchronous IO
+lock
+	manipulates a file lock on a given file
+readv
+	read from a given file and put results into count buffer
+	called by readv()
+writev
+	writes to the count buffers specified
+	called by writev()
+
+sendfile
+	writes one file one place to another
+	carried out entirely within the kernel
+sendpage
+	poor description, maybe send one page of a file?
+
+get_unmapped_area
+	get unused address space to map the given file
+
+check_flags
+	used to check validity of flags handed to fcntl() system call
+
+flock
+	used to implement flock() system call, which implements advisory locking
+
+there are also data structures to keep track of the filesystem type:
+
+struct file_system_type
+       holds:
+		name
+		flags
+		function to read superblock off disk
+		function to terminate access to superblock
+		module owning filesystem
+		next in list of filesystem types
+		superblock objects
+		and a bunch of fields for runtime lock validation
+
+note that file_system_type is like a class, there is only one object regardless of how many instances
+
+vfsmount is like an instance of a filesystem
+
+struct vfsmount
+       pointer to parent fs
+       dentry of mount point
+       dentry of root of this fs
+       superblock of this fs
+       list of children
+       mount flags
+       device file name
+       list of descriptors
+       entry in expiry list
+       entry in shared mounts list
+       list of slave mounts
+       entry in slave list
+       slaves master
+       associated namespace
+       mount identifier
+       peer group identifier
+       usage count
+       is marked for expiration
+       pinned count
+       ghosts count
+       writers count
+
+it is complicated to keep track of this mount in relation to other filesystems
+
+standard mount flags
+
+MNT_NOSUID forbids setuid and setgid flags on binaries in fs
+MNT_NODEV forbids access to device files on fs
+MNT_NOEXEC forbids execution of binaries on fs
+
+each process on the system has its own list of open files, root fs, cwd, mount points, etc
+
+three data structures tie together the VFS layer and processes on the system
+      files_struct
+		pointed to by files entry in process descriptor
+		has:
+			usage count
+			pointer to other fds
+			base fd table
+			per-file lock
+			cache of next available fd
+			list of close-on-exec fds
+			list of open fds
+			base files array
+		room for 64 file objects on 64-bit sys
+		
+      fs_struct
+		pointed to by fs in process descriptor
+		has:
+			user count
+			per structure lock
+			umask
+			currently executing a file indicator
+			root dir
+			current working directory
+		
+      namespace
+		only a declaration where love says it should be
+		now in linux/fs/mount.h
+
+struct mnt_namespace {
+	atomic_t		count; /* usage count */
+	unsigned int		proc_inum; 
+	struct mount *	root;	/* root directory */
+	struct list_head	list; /* list of mount points */
+	struct user_namespace	*user_ns; /* new, */
+	u64			seq;	/* Sequence number to prevent loops */
+	wait_queue_head_t poll; /* polling waitqueue */
+	u64 event; /* event count */
+};
+
+each process probably points to unique files_struct and fs_struct
+
+each file by default share the same namespace
+     they see the same filesystem hierarchy
+     only through CLONE_NEWNS during clone() is the process given a unique NS structure
+     on most filesystems there is only one namespace, inherited from parent for each process
+
+
+
+
